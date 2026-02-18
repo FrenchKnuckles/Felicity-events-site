@@ -1,0 +1,10 @@
+# Felicity Event Management System - Deployment URLs
+
+## Frontend URL
+https://your-frontend-app.vercel.app
+
+## Backend API URL
+https://your-backend-api.onrender.com
+
+---
+Replace the above URLs with your actual deployed URLs before submission.
