@@ -1,4 +1,8 @@
-// Error handling middleware
+// Controller wrapper - eliminates try/catch boilerplate
+export const wrap = fn => async (req, res) => {
+  try { await fn(req, res); } catch (e) { console.error(e); res.status(500).json({ message: "Server error", error: e.message }); }
+};
+
 export const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;

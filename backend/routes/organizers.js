@@ -18,7 +18,7 @@ import {
   getEventAnalytics,
   deleteEvent,
 } from "../controllers/organizerController.js";
-import { protect, authorize } from "../middleware/auth.js";
+import { protect, authorize, optionalAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -39,7 +39,7 @@ router.get("/me/analytics", protect, authorize("organizer"), getOrganizerAnalyti
 router.post("/me/request-password-reset", protect, authorize("organizer"), requestPasswordReset);
 
 // Public routes
-router.get("/", listOrganizers);
+router.get("/", optionalAuth, listOrganizers);
 router.get("/:id", getOrganizerById);
 
 // Participant routes

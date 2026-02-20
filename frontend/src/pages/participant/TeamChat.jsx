@@ -1,415 +1,133 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Box, Flex, Text, Heading, Button, TextField, Spinner, IconButton, Avatar } from "@radix-ui/themes";
-import { PaperPlaneIcon, ArrowLeftIcon, PersonIcon, Pencil1Icon, TrashIcon, CheckIcon, Cross2Icon, Link2Icon } from "@radix-ui/react-icons";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useAuth } from "../../context/AuthContext";
 import teamChatService from "../../services/teamChatService";
 import teamService from "../../services/teamService";
-import { format } from "date-fns";
+import { Box, Card, Flex, Text, Button, Heading, Spinner, TextField, Badge, IconButton, Dialog, DropdownMenu } from "@radix-ui/themes";
+import { PaperPlaneIcon, Pencil1Icon, TrashIcon, Link2Icon, DotsVerticalIcon, CheckIcon, Cross2Icon, PersonIcon } from "@radix-ui/react-icons";
 
 const TeamChat = () => {
   const { teamId } = useParams();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  
   const [team, setTeam] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState("");
   const [sending, setSending] = useState(false);
-  const [newMessage, setNewMessage] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkTitle, setLinkTitle] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
-  const [editingMessage, setEditingMessage] = useState(null);
-  const [editContent, setEditContent] = useState("");
-  const [showLinkInput, setShowLinkInput] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  
-  const messagesEndRef = useRef(null);
+  const endRef = useRef(null);
   const inputRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
-  const pollIntervalRef = useRef(null);
+  const typingRef = useRef(null);
+  const pollRef = useRef(null);
+  const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
 
-  useEffect(() => {
-    fetchInitialData();
-    
-    // Start polling for new messages and status updates
-    pollIntervalRef.current = setInterval(() => {
-      fetchNewMessages();
-      fetchOnlineStatus();
-    }, 3000);
+  const dn = u => u?.name || u?.user?.name || "User";
 
-    // Set online status
-    teamChatService.updateOnlineStatus(teamId, true);
+  const fetchTeam = useCallback(async () => { try { const r = await teamService.getTeam(teamId); setTeam(r.data.team); } catch { toast.error("Failed to load team"); } }, [teamId]);
 
-    return () => {
-      // Cleanup
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-      teamChatService.updateOnlineStatus(teamId, false);
-    };
+  const fetchMessages = useCallback(async () => {
+    try {
+      const r = await teamChatService.getMessages(teamId);
+      setMessages(r.data.messages || []);
+      setOnlineUsers(r.data.onlineUsers || []);
+      setTypingUsers(r.data.typingUsers || []);
+    } catch {}
   }, [teamId]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    (async () => { setLoading(true); await Promise.all([fetchTeam(), fetchMessages()]); setLoading(false); })();
+    pollRef.current = setInterval(fetchMessages, 3000);
+    const ping = setInterval(() => { teamChatService.updateOnlineStatus(teamId, true).catch(() => {}); }, 15000);
+    teamChatService.updateOnlineStatus(teamId, true).catch(() => {});
+    return () => { clearInterval(pollRef.current); clearInterval(ping); teamChatService.updateOnlineStatus(teamId, false).catch(() => {}); };
+  }, [teamId, fetchTeam, fetchMessages]);
 
-  const fetchInitialData = async () => {
-    try {
-      setLoading(true);
-      const [teamRes, messagesRes] = await Promise.all([
-        teamService.getTeam(teamId),
-        teamChatService.getMessages(teamId),
-      ]);
-      
-      setTeam(teamRes.data.team);
-      setMessages(messagesRes.data.messages || []);
-      
-      // Mark as read
-      teamChatService.markAsRead(teamId);
-    } catch (error) {
-      toast.error("Failed to load chat");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchNewMessages = async () => {
-    try {
-      const res = await teamChatService.getMessages(teamId, { limit: 50 });
-      setMessages(res.data.messages || []);
-    } catch (error) {
-      console.error("Failed to fetch messages:", error);
-    }
-  };
-
-  const fetchOnlineStatus = async () => {
-    try {
-      const [onlineRes, typingRes] = await Promise.all([
-        teamChatService.getOnlineUsers(teamId),
-        teamChatService.getTypingUsers(teamId),
-      ]);
-      setOnlineUsers(onlineRes.data.onlineUsers || []);
-      setTypingUsers(typingRes.data.typingUsers || []);
-    } catch (error) {
-      console.error("Failed to fetch status:", error);
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const handleTyping = () => {
-    teamChatService.updateTypingStatus(teamId, true);
-    
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    typingTimeoutRef.current = setTimeout(() => {
-      teamChatService.updateTypingStatus(teamId, false);
-    }, 2000);
+    teamChatService.updateTypingStatus(teamId, true).catch(() => {});
+    clearTimeout(typingRef.current);
+    typingRef.current = setTimeout(() => teamChatService.updateTypingStatus(teamId, false).catch(() => {}), 2000);
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    try {
-      setSending(true);
-      teamChatService.updateTypingStatus(teamId, false);
-      
-      await teamChatService.sendMessage(teamId, newMessage);
-      setNewMessage("");
-      inputRef.current?.focus();
-      
-      fetchNewMessages();
-    } catch (error) {
-      toast.error("Failed to send message");
-    } finally {
-      setSending(false);
-    }
+  const send = async (e) => {
+    e.preventDefault(); if (!msg.trim()) return;
+    try { setSending(true); await teamChatService.sendMessage(teamId, msg, "text"); setMsg(""); fetchMessages(); }
+    catch (err) { toast.error(err.response?.data?.message || "Failed to send"); } finally { setSending(false); }
   };
 
-  const handleSendLink = async () => {
-    if (!linkUrl.trim()) return;
-
-    try {
-      setSending(true);
-      await teamChatService.sendMessage(teamId, linkUrl.trim(), "link");
-      setLinkUrl("");
-      setShowLinkInput(false);
-      fetchNewMessages();
-    } catch (error) {
-      toast.error("Failed to share link");
-    } finally {
-      setSending(false);
-    }
+  const sendLink = async (e) => {
+    e.preventDefault(); if (!linkUrl.trim()) return;
+    try { await teamChatService.sendMessage(teamId, linkTitle || linkUrl, "link"); setLinkOpen(false); setLinkUrl(""); setLinkTitle(""); fetchMessages(); }
+    catch (err) { toast.error(err.response?.data?.message || "Failed to send link"); }
   };
 
-  const handleEditMessage = async (messageId) => {
-    if (!editContent.trim()) {
-      setEditingMessage(null);
-      return;
-    }
-
-    try {
-      await teamChatService.editMessage(teamId, messageId, editContent);
-      setEditingMessage(null);
-      setEditContent("");
-      fetchNewMessages();
-    } catch (error) {
-      toast.error("Failed to edit message");
-    }
+  const startEdit = m => { setEditId(m._id); setEditText(m.content); };
+  const cancelEdit = () => { setEditId(null); setEditText(""); };
+  const saveEdit = async () => {
+    if (!editText.trim()) return;
+    try { await teamChatService.editMessage(teamId, editId, editText); cancelEdit(); fetchMessages(); }
+    catch (err) { toast.error(err.response?.data?.message || "Failed to edit"); }
   };
-
-  const handleDeleteMessage = async (messageId) => {
+  const deleteMsg = async (id) => {
     if (!window.confirm("Delete this message?")) return;
-
-    try {
-      await teamChatService.deleteMessage(teamId, messageId);
-      fetchNewMessages();
-    } catch (error) {
-      toast.error("Failed to delete message");
-    }
+    try { await teamChatService.deleteMessage(teamId, id); fetchMessages(); } catch { toast.error("Failed to delete"); }
   };
 
-  const startEditing = (message) => {
-    setEditingMessage(message._id);
-    setEditContent(message.content);
-  };
+  if (loading) return <Flex align="center" justify="center" style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }}><Spinner size="3" /></Flex>;
 
-  if (loading) {
-    return (
-      <Box style={{ minHeight: "100vh", background: "var(--gray-1)" }}>
-        <Flex align="center" justify="center" style={{ minHeight: "100vh" }}>
-          <Spinner size="3" />
-        </Flex>
-      </Box>
-    );
-  }
+  const isOnline = uid => onlineUsers.some(u => (u._id || u) === uid);
+  const typing = typingUsers.filter(u => (u._id || u) !== userId);
 
   return (
-    <Box style={{ minHeight: "100vh", background: "var(--gray-2)", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
-      <Box style={{ background: "var(--gray-1)", borderBottom: "1px solid var(--gray-5)" }} px="4" py="3">
-        <Flex justify="between" align="center" style={{ maxWidth: 896, margin: "0 auto" }}>
-          <Flex align="center" gap="3">
-            <IconButton variant="ghost" onClick={() => navigate(-1)}>
-              <ArrowLeftIcon />
-            </IconButton>
-            <Box>
-              <Heading size="4">{team?.name} Chat</Heading>
-              <Flex align="center" gap="2">
-                <PersonIcon width="12" height="12" />
-                <Text size="1" color="gray">{team?.members?.length || 0} members</Text>
-                <Text size="1" color="gray">•</Text>
-                <Text size="1" color="green">{onlineUsers.length} online</Text>
-              </Flex>
-            </Box>
-          </Flex>
-          
-          {/* Online Users */}
-          <Flex style={{ marginLeft: "-8px" }}>
-            {team?.members?.slice(0, 5).map((member, index) => {
-              const isOnline = onlineUsers.some(
-                (u) => u.toString() === member.user?._id?.toString()
-              );
-              return (
-                <Box key={member.user?._id || index} style={{ position: "relative", marginLeft: -8 }} title={member.user?.name}>
-                  <Avatar
-                    size="2"
-                    fallback={member.user?.name?.charAt(0) || "?"}
-                    style={{ border: "2px solid var(--gray-1)" }}
-                  />
-                  <Box
-                    style={{
-                      position: "absolute",
-                      bottom: -2,
-                      right: -2,
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      background: isOnline ? "var(--green-9)" : "var(--gray-8)",
-                      border: "2px solid var(--gray-1)"
-                    }}
-                  />
+    <Box style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }} py="4">
+      <Box style={{ maxWidth: 896, margin: "0 auto", height: "calc(100vh - 120px)" }} px="4">
+        <Card mb="3"><Flex justify="between" align="center">
+          <Box><Heading size="5">{team?.name || "Team Chat"}</Heading><Text size="2" color="gray">{onlineUsers.length} online</Text></Box>
+          <Flex gap="1">{team?.members?.slice(0, 5).map((m, i) => <Box key={m.user?._id || i} title={dn(m)} style={{ width: 32, height: 32, borderRadius: "50%", backgroundColor: isOnline(m.user?._id) ? "var(--green-9)" : "var(--gray-8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, position: "relative" }}>{dn(m).charAt(0)}</Box>)}</Flex>
+        </Flex></Card>
+
+        <Card style={{ height: "calc(100% - 140px)", display: "flex", flexDirection: "column" }}>
+          <Box style={{ flex: 1, overflow: "auto", padding: 16 }}>
+            {messages.length === 0 ? <Flex align="center" justify="center" style={{ height: "100%" }}><Text color="gray">No messages yet. Start the conversation!</Text></Flex>
+            : messages.map(m => {
+              const mine = (m.sender?._id || m.sender) === userId;
+              return <Flex key={m._id} justify={mine ? "end" : "start"} mb="3">
+                {!mine && <Flex align="center" justify="center" style={{ width: 32, height: 32, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 12, flexShrink: 0, marginRight: 8, marginTop: 4 }}>{dn(m.sender).charAt(0)}</Flex>}
+                <Box style={{ maxWidth: "70%", position: "relative" }}>
+                  {!mine && <Text size="1" color="gray" mb="1" style={{ display: "block" }}>{dn(m.sender)}</Text>}
+                  <Card variant={mine ? "classic" : "surface"} style={{ backgroundColor: mine ? "var(--blue-9)" : undefined, color: mine ? "white" : undefined }}>
+                    {editId === m._id ? <Flex gap="2"><TextField.Root value={editText} onChange={e => setEditText(e.target.value)} size="1" style={{ flex: 1 }} /><IconButton size="1" onClick={saveEdit}><CheckIcon /></IconButton><IconButton size="1" variant="ghost" onClick={cancelEdit}><Cross2Icon /></IconButton></Flex>
+                    : <>{m.messageType === "link" ? <a href={m.metadata?.url} target="_blank" rel="noopener noreferrer" style={{ color: mine ? "white" : "var(--blue-9)", textDecoration: "underline" }}>{m.content}</a> : <Text size="2">{m.content}</Text>}
+                      {m.edited && <Text size="1" style={{ opacity: 0.6 }}> (edited)</Text>}</>}
+                  </Card>
+                  <Flex justify={mine ? "end" : "start"} mt="1" gap="2" align="center">
+                    <Text size="1" style={{ opacity: 0.5 }}>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+                    {mine && !editId && <DropdownMenu.Root><DropdownMenu.Trigger><IconButton size="1" variant="ghost"><DotsVerticalIcon width={12} height={12} /></IconButton></DropdownMenu.Trigger><DropdownMenu.Content size="1"><DropdownMenu.Item onClick={() => startEdit(m)}><Pencil1Icon width={14} height={14} /> Edit</DropdownMenu.Item><DropdownMenu.Item color="red" onClick={() => deleteMsg(m._id)}><TrashIcon width={14} height={14} /> Delete</DropdownMenu.Item></DropdownMenu.Content></DropdownMenu.Root>}
+                  </Flex>
                 </Box>
-              );
+              </Flex>;
             })}
-          </Flex>
-        </Flex>
-      </Box>
+            <div ref={endRef} />
+          </Box>
 
-      {/* Messages */}
-      <Box style={{ flex: 1, overflowY: "auto" }} p="4">
-        <Flex direction="column" gap="3" style={{ maxWidth: 896, margin: "0 auto" }}>
-          {messages.length === 0 ? (
-            <Box py="8" style={{ textAlign: "center" }}>
-              <Text size="4" color="gray">No messages yet</Text>
-              <Text size="2" color="gray">Be the first to say hello! 👋</Text>
-            </Box>
-          ) : (
-            messages.map((message) => {
-              const isOwn = message.sender?._id === user?.id;
-              const isEditing = editingMessage === message._id;
+          {typing.length > 0 && <Box px="4" pb="1"><Text size="1" color="gray" style={{ fontStyle: "italic" }}>{typing.map(u => dn(u)).join(", ")} typing...</Text></Box>}
 
-              return (
-                <Flex key={message._id} justify={isOwn ? "end" : "start"}>
-                  <Box style={{ maxWidth: "70%" }}>
-                    {!isOwn && (
-                      <Text size="1" color="gray" mb="1" ml="2">{message.sender?.name}</Text>
-                    )}
-                    
-                    <Box
-                      style={{
-                        position: "relative",
-                        background: isOwn ? "var(--indigo-9)" : "var(--gray-4)",
-                        color: isOwn ? "white" : "var(--gray-12)",
-                        borderRadius: 16,
-                        borderBottomRightRadius: isOwn ? 4 : 16,
-                        borderBottomLeftRadius: isOwn ? 16 : 4,
-                        padding: "8px 16px"
-                      }}
-                    >
-                      {isEditing ? (
-                        <Flex align="center" gap="2">
-                          <TextField.Root
-                            size="1"
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            autoFocus
-                          />
-                          <IconButton size="1" variant="ghost" color="green" onClick={() => handleEditMessage(message._id)}>
-                            <CheckIcon />
-                          </IconButton>
-                          <IconButton size="1" variant="ghost" color="red" onClick={() => setEditingMessage(null)}>
-                            <Cross2Icon />
-                          </IconButton>
-                        </Flex>
-                      ) : (
-                        <>
-                          {message.messageType === "link" ? (
-                            <a
-                              href={message.content}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: isOwn ? "#c7d2fe" : "var(--blue-11)", textDecoration: "underline", wordBreak: "break-all" }}
-                            >
-                              <Flex align="center" gap="1">
-                                <Link2Icon width="14" height="14" />
-                                <Text>{message.content}</Text>
-                              </Flex>
-                            </a>
-                          ) : (
-                            <Text style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                              {message.content}
-                            </Text>
-                          )}
-                          {message.isEdited && (
-                            <Text size="1" style={{ opacity: 0.6, marginLeft: 4 }}>(edited)</Text>
-                          )}
-                          
-                          {isOwn && (
-                            <Flex gap="1" style={{ position: "absolute", left: -56, top: "50%", transform: "translateY(-50%)", opacity: 0 }} className="message-actions">
-                              <IconButton size="1" variant="ghost" onClick={() => startEditing(message)}>
-                                <Pencil1Icon width="12" height="12" />
-                              </IconButton>
-                              <IconButton size="1" variant="ghost" color="red" onClick={() => handleDeleteMessage(message._id)}>
-                                <TrashIcon width="12" height="12" />
-                              </IconButton>
-                            </Flex>
-                          )}
-                        </>
-                      )}
-                    </Box>
-                    
-                    <Text size="1" color="gray" mt="1" style={{ textAlign: isOwn ? "right" : "left", padding: "0 8px" }}>
-                      {format(new Date(message.createdAt), "HH:mm")}
-                    </Text>
-                  </Box>
-                </Flex>
-              );
-            })
-          )}
-          
-          {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <Flex align="center" gap="2">
-              <Flex gap="1">
-                <Box style={{ width: 8, height: 8, background: "var(--gray-8)", borderRadius: "50%", animation: "bounce 1s infinite" }} />
-                <Box style={{ width: 8, height: 8, background: "var(--gray-8)", borderRadius: "50%", animation: "bounce 1s infinite 0.15s" }} />
-                <Box style={{ width: 8, height: 8, background: "var(--gray-8)", borderRadius: "50%", animation: "bounce 1s infinite 0.3s" }} />
-              </Flex>
-              <Text size="2" color="gray">
-                {typingUsers.length === 1 ? "Someone is" : "People are"} typing...
-              </Text>
-            </Flex>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </Flex>
-      </Box>
-
-      {/* Message Input */}
-      <Box style={{ background: "var(--gray-1)", borderTop: "1px solid var(--gray-5)" }} p="4">
-        {showLinkInput && (
-          <Flex gap="2" align="center" mb="2" style={{ maxWidth: 896, margin: "0 auto" }}>
-            <TextField.Root
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="Paste a link URL..."
-              size="2"
-              style={{ flex: 1 }}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSendLink();
-                if (e.key === "Escape") { setShowLinkInput(false); setLinkUrl(""); }
-              }}
-            />
-            <Button size="2" onClick={handleSendLink} disabled={!linkUrl.trim() || sending}>
-              Share
-            </Button>
-            <IconButton size="2" variant="ghost" onClick={() => { setShowLinkInput(false); setLinkUrl(""); }}>
-              <Cross2Icon />
-            </IconButton>
-          </Flex>
-        )}
-        <form onSubmit={handleSendMessage}>
-          <Flex gap="3" align="center" style={{ maxWidth: 896, margin: "0 auto" }}>
-            <IconButton
-              type="button"
-              variant="ghost"
-              size="3"
-              onClick={() => setShowLinkInput(!showLinkInput)}
-              title="Share a link"
-              style={{ borderRadius: "50%" }}
-            >
-              <Link2Icon width="18" height="18" />
-            </IconButton>
-            <TextField.Root
-              ref={inputRef}
-              value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
-                handleTyping();
-              }}
-              placeholder="Type a message..."
-              size="3"
-              style={{ flex: 1, borderRadius: 9999 }}
-            />
-            <Button 
-              type="submit" 
-              disabled={sending || !newMessage.trim()}
-              style={{ borderRadius: "50%", width: 44, height: 44 }}
-            >
-              {sending ? <Spinner size="1" /> : <PaperPlaneIcon />}
-            </Button>
-          </Flex>
-        </form>
+          <Box p="3" style={{ borderTop: "1px solid var(--gray-a5)" }}>
+            <form onSubmit={send}><Flex gap="2">
+              <Dialog.Root open={linkOpen} onOpenChange={setLinkOpen}><Dialog.Trigger><IconButton type="button" variant="soft"><Link2Icon /></IconButton></Dialog.Trigger>
+                <Dialog.Content style={{ maxWidth: 400 }}><Dialog.Title>Share Link</Dialog.Title><form onSubmit={sendLink}><Box mb="3"><Text as="label" size="2">URL</Text><TextField.Root value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." /></Box><Box mb="4"><Text as="label" size="2">Title (optional)</Text><TextField.Root value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link title" /></Box><Flex gap="2" justify="end"><Dialog.Close><Button variant="soft" color="gray">Cancel</Button></Dialog.Close><Button type="submit">Share</Button></Flex></form></Dialog.Content>
+              </Dialog.Root>
+              <Box style={{ flex: 1 }}><TextField.Root ref={inputRef} value={msg} onChange={e => { setMsg(e.target.value); handleTyping(); }} placeholder="Type a message..." size="3" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) send(e); }} /></Box>
+              <Button type="submit" disabled={sending || !msg.trim()} size="3"><PaperPlaneIcon /></Button>
+            </Flex></form>
+          </Box>
+        </Card>
       </Box>
     </Box>
   );

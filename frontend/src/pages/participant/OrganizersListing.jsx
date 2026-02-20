@@ -1,243 +1,56 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import { organizerService } from "../../services";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import {
-  Box,
-  Card,
-  Flex,
-  Text,
-  Button,
-  Heading,
-  Badge,
-  Grid,
-  TextField,
-  Spinner,
-  IconButton,
-} from "@radix-ui/themes";
-import {
-  MagnifyingGlassIcon,
-  HeartIcon,
-  HeartFilledIcon,
-  EnvelopeClosedIcon,
-  StarIcon,
-  PersonIcon,
-} from "@radix-ui/react-icons";
+import organizerService from "../../services/organizerService";
+import { Box, Card, Flex, Text, Button, Heading, Spinner, Badge, Grid, TextField } from "@radix-ui/themes";
+import { MagnifyingGlassIcon, PersonIcon, StarIcon } from "@radix-ui/react-icons";
+
+const catColors = { cultural: "blue", technical: "purple", sports: "green", other: "orange" };
 
 const OrganizersListing = () => {
-  const { user, updateUser } = useAuth();
-  const [organizers, setOrganizers] = useState([]);
+  const navigate = useNavigate();
+  const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [followedIds, setFollowedIds] = useState([]);
+  const [toggling, setToggling] = useState({});
 
-  useEffect(() => {
-    fetchOrganizers();
-    if (user) {
-      setFollowedIds(user.followedOrganizers?.map((o) => o._id || o) || []);
-    }
-  }, [user]);
+  useEffect(() => { (async () => { try { const r = await organizerService.getAll(); setOrgs(Array.isArray(r) ? r : r.organizers || []); } catch { toast.error("Failed to load organizers"); } finally { setLoading(false); } })(); }, []);
 
-  const fetchOrganizers = async () => {
-    try {
-      const data = await organizerService.getAll();
-      setOrganizers(data);
-    } catch (error) {
-      console.error("Error fetching organizers:", error);
-    } finally {
-      setLoading(false);
-    }
+  const toggleFollow = async (id) => {
+    try { setToggling(p => ({ ...p, [id]: true })); const r = await organizerService.toggleFollow(id);
+      setOrgs(orgs.map(o => o._id === id ? { ...o, isFollowing: r.isFollowing, followerCount: r.isFollowing ? (o.followerCount || 0) + 1 : Math.max(0, (o.followerCount || 0) - 1) } : o));
+    } catch { toast.error("Failed to update follow"); } finally { setToggling(p => ({ ...p, [id]: false })); }
   };
 
-  const handleFollow = async (organizerId) => {
-    if (!user) {
-      toast.info("Please login to follow organizers");
-      return;
-    }
+  const filtered = orgs.filter(o => !search || o.name?.toLowerCase().includes(search.toLowerCase()) || o.category?.toLowerCase().includes(search.toLowerCase()));
+  const followCount = orgs.filter(o => o.isFollowing).length;
+  const stats = [{ label: "Total", value: orgs.length, color: "blue" }, { label: "Following", value: followCount, color: "green" }];
 
-    try {
-      const { isFollowing, followedOrganizers } = await organizerService.toggleFollow(organizerId);
-      if (isFollowing) {
-        setFollowedIds((prev) => [...prev, organizerId]);
-        toast.success("Following!");
-      } else {
-        setFollowedIds((prev) => prev.filter((id) => id !== organizerId));
-        toast.success("Unfollowed");
-      }
-      updateUser({ followedOrganizers });
-    } catch (error) {
-      toast.error("Failed to update follow status");
-    }
-  };
-
-  const filteredOrganizers = organizers.filter(
-    (org) =>
-      org.name.toLowerCase().includes(search.toLowerCase()) ||
-      org.category?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const getCategoryColor = (category) => {
-    const colors = {
-      club: "blue",
-      committee: "purple",
-      department: "green",
-      external: "orange",
-    };
-    return colors[category?.toLowerCase()] || "gray";
-  };
-
-  if (loading) {
-    return (
-      <Flex align="center" justify="center" style={{ minHeight: "100vh" }}>
-        <Spinner size="3" />
-      </Flex>
-    );
-  }
+  if (loading) return <Flex align="center" justify="center" style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }}><Spinner size="3" /></Flex>;
 
   return (
-    <Box p="6" style={{ maxWidth: "1200px", margin: "0 auto" }}>
-      {/* Header */}
-      <Box mb="6">
-        <Heading size="8" mb="2">Clubs & Organizers</Heading>
-        <Text color="gray" size="3">
-          Follow your favorite clubs to get notified about their events
-        </Text>
+    <Box style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }} py="6">
+      <Box style={{ maxWidth: 1024, margin: "0 auto" }} px="4">
+        <Heading size="7" mb="5">Organizers</Heading>
+
+        <Grid columns="3" gap="4" mb="5">{stats.map(s => <Card key={s.label}><Flex direction="column" align="center" py="2"><Text size="6" weight="bold" color={s.color}>{s.value}</Text><Text size="2" color="gray">{s.label}</Text></Flex></Card>)}</Grid>
+
+        <Box mb="5"><TextField.Root value={search} onChange={e => setSearch(e.target.value)} placeholder="Search organizers..." size="3"><TextField.Slot><MagnifyingGlassIcon /></TextField.Slot></TextField.Root></Box>
+
+        {filtered.length === 0 ? <Card><Flex align="center" justify="center" py="6"><Text color="gray">{search ? "No organizers match your search" : "No organizers found"}</Text></Flex></Card>
+        : <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">{filtered.map(o => (
+          <Card key={o._id} style={{ cursor: "pointer" }} onClick={() => navigate(`/organizer/${o._id}`)}>
+            <Flex direction="column" align="center" py="3">
+              <Flex align="center" justify="center" style={{ width: 64, height: 64, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 24, marginBottom: 12 }}>{o.name?.charAt(0) || "O"}</Flex>
+              <Heading size="4" mb="1" align="center">{o.name}</Heading>
+              <Badge color={catColors[o.category] || "gray"} mb="2">{o.category || "Organization"}</Badge>
+              {o.description && <Text size="2" color="gray" align="center" mb="3" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{o.description}</Text>}
+              <Flex gap="3" align="center" mb="3"><Badge variant="soft"><PersonIcon width={12} height={12} /> Followers: {o.followerCount || 0}</Badge>{o.eventCount != null && <Badge variant="soft"><StarIcon width={12} height={12} /> Events: {o.eventCount}</Badge>}</Flex>
+              <Button onClick={e => { e.stopPropagation(); toggleFollow(o._id); }} disabled={toggling[o._id]} variant={o.isFollowing ? "soft" : "solid"} color={o.isFollowing ? "gray" : "blue"} size="2">{o.isFollowing ? "Following" : "Follow"}</Button>
+            </Flex>
+          </Card>
+        ))}</Grid>}
       </Box>
-
-      {/* Search */}
-      <Card mb="6">
-        <TextField.Root
-          placeholder="Search clubs and organizers..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          size="3"
-        >
-          <TextField.Slot>
-            <MagnifyingGlassIcon height="16" width="16" />
-          </TextField.Slot>
-        </TextField.Root>
-      </Card>
-
-      {/* Stats */}
-      <Grid columns={{ initial: "1", md: "3" }} gap="4" mb="6">
-        <Card>
-          <Flex direction="column" align="center" py="2">
-            <PersonIcon width={32} height={32} color="var(--blue-9)" style={{ marginBottom: "8px" }} />
-            <Text size="6" weight="bold">{organizers.length}</Text>
-            <Text size="2" color="gray">Total Organizers</Text>
-          </Flex>
-        </Card>
-        <Card>
-          <Flex direction="column" align="center" py="2">
-            <HeartFilledIcon width={32} height={32} color="var(--red-9)" style={{ marginBottom: "8px" }} />
-            <Text size="6" weight="bold">{followedIds.length}</Text>
-            <Text size="2" color="gray">Following</Text>
-          </Flex>
-        </Card>
-        <Card>
-          <Flex direction="column" align="center" py="2">
-            <StarIcon width={32} height={32} color="var(--yellow-9)" style={{ marginBottom: "8px" }} />
-            <Text size="6" weight="bold">
-              {organizers.filter((o) => o.category === "club").length}
-            </Text>
-            <Text size="2" color="gray">Student Clubs</Text>
-          </Flex>
-        </Card>
-      </Grid>
-
-      {/* Organizers Grid */}
-      {filteredOrganizers.length === 0 ? (
-        <Card>
-          <Flex direction="column" align="center" py="9">
-            <PersonIcon width={64} height={64} color="var(--gray-6)" style={{ marginBottom: "16px" }} />
-            <Heading size="4" mb="2">No organizers found</Heading>
-            <Text color="gray">Try adjusting your search</Text>
-          </Flex>
-        </Card>
-      ) : (
-        <Grid columns={{ initial: "1", md: "2", lg: "3" }} gap="5">
-          {filteredOrganizers.map((org) => (
-            <Card key={org._id}>
-              <Flex justify="between" align="start" mb="4">
-                <Flex align="center" gap="3">
-                  <Flex
-                    align="center"
-                    justify="center"
-                    style={{
-                      width: "56px",
-                      height: "56px",
-                      background: "linear-gradient(135deg, var(--blue-9), var(--purple-9))",
-                      borderRadius: "50%",
-                    }}
-                  >
-                    <Text size="5" weight="bold" style={{ color: "white" }}>
-                      {org.name?.charAt(0)}
-                    </Text>
-                  </Flex>
-                  <Box>
-                    <Link to={`/organizers/${org._id}`} style={{ textDecoration: "none" }}>
-                      <Text weight="bold" size="3" style={{ cursor: "pointer" }}>
-                        {org.name}
-                      </Text>
-                    </Link>
-                    <Box mt="1">
-                      <Badge color={getCategoryColor(org.category)} size="1">
-                        {org.category}
-                      </Badge>
-                    </Box>
-                  </Box>
-                </Flex>
-                <IconButton
-                  variant="ghost"
-                  color={followedIds.includes(org._id) ? "red" : "gray"}
-                  onClick={() => handleFollow(org._id)}
-                  radius="full"
-                >
-                  {followedIds.includes(org._id) ? (
-                    <HeartFilledIcon width={20} height={20} />
-                  ) : (
-                    <HeartIcon width={20} height={20} />
-                  )}
-                </IconButton>
-              </Flex>
-
-              {org.description && (
-                <Text
-                  size="2"
-                  color="gray"
-                  mb="3"
-                  style={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {org.description}
-                </Text>
-              )}
-
-              {org.contactEmail && (
-                <Flex align="center" gap="2" mb="3">
-                  <EnvelopeClosedIcon width={14} height={14} color="var(--gray-9)" />
-                  <Text size="2" color="gray" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {org.contactEmail}
-                  </Text>
-                </Flex>
-              )}
-
-              <Box pt="3" style={{ borderTop: "1px solid var(--gray-a5)" }}>
-                <Link to={`/organizers/${org._id}`} style={{ textDecoration: "none" }}>
-                  <Text size="2" color="blue" weight="medium">
-                    View Events →
-                  </Text>
-                </Link>
-              </Box>
-            </Card>
-          ))}
-        </Grid>
-      )}
     </Box>
   );
 };

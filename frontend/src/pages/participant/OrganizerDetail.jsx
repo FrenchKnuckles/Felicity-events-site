@@ -1,260 +1,65 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import { organizerService } from "../../services";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { format } from "date-fns";
-import {
-  Box,
-  Card,
-  Flex,
-  Text,
-  Button,
-  Heading,
-  Badge,
-  Grid,
-  Spinner,
-} from "@radix-ui/themes";
-import {
-  ArrowLeftIcon,
-  HeartIcon,
-  HeartFilledIcon,
-  EnvelopeClosedIcon,
-  MobileIcon,
-  CalendarIcon,
-  ClockIcon,
-  StarIcon,
-} from "@radix-ui/react-icons";
+import organizerService from "../../services/organizerService";
+import { Box, Card, Flex, Text, Button, Heading, Spinner, Badge, Grid } from "@radix-ui/themes";
+import { PersonIcon, EnvelopeClosedIcon, CalendarIcon, ArrowLeftIcon } from "@radix-ui/react-icons";
+
+const catColors = { cultural: "blue", technical: "purple", sports: "green", other: "orange" };
 
 const OrganizerDetail = () => {
   const { id } = useParams();
-  const { user, updateUser } = useAuth();
-  const [organizer, setOrganizer] = useState(null);
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [pastEvents, setPastEvents] = useState([]);
+  const navigate = useNavigate();
+  const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
-  useEffect(() => {
-    fetchOrganizerDetails();
-  }, [id]);
+  useEffect(() => { (async () => { try { const r = await organizerService.getById(id); setOrg(r.data.organizer || r.data); setFollowing(r.data.isFollowing || false); } catch { toast.error("Failed to load organizer"); } finally { setLoading(false); } })(); }, [id]);
 
-  useEffect(() => {
-    if (user && organizer) {
-      const followedIds = user.followedOrganizers?.map((o) => o._id || o) || [];
-      setIsFollowing(followedIds.includes(organizer._id));
-    }
-  }, [user, organizer]);
-
-  const fetchOrganizerDetails = async () => {
-    try {
-      const data = await organizerService.getById(id);
-      setOrganizer(data.organizer);
-      setUpcomingEvents(data.upcomingEvents || []);
-      setPastEvents(data.pastEvents || []);
-    } catch (error) {
-      console.error("Error fetching organizer:", error);
-      toast.error("Organizer not found");
-    } finally {
-      setLoading(false);
-    }
+  const toggleFollow = async () => {
+    try { setToggling(true); const r = await organizerService.toggleFollow(id); setFollowing(r.data.isFollowing); toast.success(r.data.isFollowing ? "Following!" : "Unfollowed"); }
+    catch { toast.error("Failed to update follow"); } finally { setToggling(false); }
   };
 
-  const handleFollow = async () => {
-    if (!user) {
-      toast.info("Please login to follow organizers");
-      return;
-    }
+  if (loading) return <Flex align="center" justify="center" style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }}><Spinner size="3" /></Flex>;
+  if (!org) return <Flex align="center" justify="center" style={{ minHeight: "100vh" }}><Text>Organizer not found</Text></Flex>;
 
-    try {
-      const { isFollowing: newFollowing, followedOrganizers } = await organizerService.toggleFollow(id);
-      setIsFollowing(newFollowing);
-      updateUser({ followedOrganizers });
-      toast.success(newFollowing ? "Following!" : "Unfollowed");
-    } catch (error) {
-      toast.error("Failed to update follow status");
-    }
-  };
+  const events = org.events || [];
+  const upcoming = events.filter(e => new Date(e.date) >= new Date());
+  const past = events.filter(e => new Date(e.date) < new Date());
 
-  if (loading) {
-    return (
-      <Flex align="center" justify="center" style={{ minHeight: "100vh" }}>
-        <Spinner size="3" />
-      </Flex>
-    );
-  }
-
-  if (!organizer) {
-    return (
-      <Box p="6" style={{ maxWidth: "1200px", margin: "0 auto", textAlign: "center" }} py="9">
-        <Heading size="6" mb="4">Organizer not found</Heading>
-        <Link to="/organizers" style={{ textDecoration: "none" }}>
-          <Button>Browse Organizers</Button>
-        </Link>
-      </Box>
-    );
-  }
+  const EventCard = ({ ev }) => (
+    <Card style={{ cursor: "pointer" }} onClick={() => navigate(`/events/${ev._id}`)}>
+      <Heading size="3" mb="1">{ev.name}</Heading>
+      <Flex gap="2" mb="2"><Badge color="blue" size="1"><CalendarIcon width={12} height={12} /> {new Date(ev.date).toLocaleDateString()}</Badge>{ev.category && <Badge color={catColors[ev.category] || "gray"} size="1">{ev.category}</Badge>}</Flex>
+      <Text size="2" color="gray" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ev.description}</Text>
+    </Card>
+  );
 
   return (
-    <Box p="6" style={{ maxWidth: "1200px", margin: "0 auto" }}>
-      {/* Back Button */}
-      <Link to="/organizers" style={{ textDecoration: "none" }}>
-        <Button variant="ghost" color="gray" mb="5">
-          <ArrowLeftIcon width={20} height={20} />
-          Back to Organizers
-        </Button>
-      </Link>
+    <Box style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }} py="6">
+      <Box style={{ maxWidth: 896, margin: "0 auto" }} px="4">
+        <Button variant="ghost" mb="4" onClick={() => navigate(-1)}><ArrowLeftIcon /> Back</Button>
 
-      {/* Organizer Header */}
-      <Card mb="6">
-        <Flex
-          direction={{ initial: "column", md: "row" }}
-          justify="between"
-          align={{ initial: "start", md: "center" }}
-          gap="4"
-        >
-          <Flex align="center" gap="4">
-            <Flex
-              align="center"
-              justify="center"
-              style={{
-                width: "80px",
-                height: "80px",
-                background: "linear-gradient(135deg, var(--blue-9), var(--purple-9))",
-                borderRadius: "50%",
-              }}
-            >
-              <Text size="8" weight="bold" style={{ color: "white" }}>
-                {organizer.name?.charAt(0)}
-              </Text>
+        <Card mb="5"><Flex gap="5" align="start" wrap="wrap">
+          <Flex align="center" justify="center" style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 32 }}>{org.name?.charAt(0) || "O"}</Flex>
+          <Box style={{ flex: 1 }}>
+            <Flex justify="between" align="start"><Box><Heading size="6">{org.name}</Heading><Badge color={catColors[org.category] || "gray"} mt="1">{org.category || "Organization"}</Badge></Box>
+              <Button onClick={toggleFollow} disabled={toggling} variant={following ? "soft" : "solid"} color={following ? "gray" : "blue"}>{following ? "Following" : "Follow"}</Button>
             </Flex>
-            <Box>
-              <Heading size="6" mb="2">{organizer.name}</Heading>
-              <Badge color="blue" size="2">{organizer.category}</Badge>
-            </Box>
-          </Flex>
-
-          <Button
-            onClick={handleFollow}
-            color={isFollowing ? "red" : "blue"}
-            variant={isFollowing ? "soft" : "solid"}
-            style={{ borderRadius: "9999px" }}
-            size="3"
-          >
-            {isFollowing ? (
-              <>
-                <HeartFilledIcon width={20} height={20} />
-                Following
-              </>
-            ) : (
-              <>
-                <HeartIcon width={20} height={20} />
-                Follow
-              </>
-            )}
-          </Button>
-        </Flex>
-
-        {organizer.description && (
-          <Text color="gray" mt="5" size="3" as="p">
-            {organizer.description}
-          </Text>
-        )}
-
-        {/* Contact Info */}
-        <Flex wrap="wrap" gap="5" mt="5">
-          {organizer.contactEmail && (
-            <a
-              href={`mailto:${organizer.contactEmail}`}
-              style={{ textDecoration: "none" }}
-            >
-              <Flex align="center" gap="2">
-                <EnvelopeClosedIcon width={20} height={20} color="var(--gray-9)" />
-                <Text color="gray" size="3">{organizer.contactEmail}</Text>
-              </Flex>
-            </a>
-          )}
-          {organizer.contactNumber && (
-            <Flex align="center" gap="2">
-              <MobileIcon width={20} height={20} color="var(--gray-9)" />
-              <Text color="gray" size="3">{organizer.contactNumber}</Text>
+            {org.description && <Text size="3" color="gray" mt="3" as="p">{org.description}</Text>}
+            <Flex gap="4" mt="3" wrap="wrap">
+              {org.email && <Flex align="center" gap="1"><EnvelopeClosedIcon /><Text size="2">{org.email}</Text></Flex>}
+              {org.phone && <Flex align="center" gap="1"><PersonIcon /><Text size="2">{org.phone}</Text></Flex>}
+              {org.followerCount != null && <Badge variant="soft" color="blue"><PersonIcon width={12} height={12} /> Followers: {org.followerCount}</Badge>}
             </Flex>
-          )}
-        </Flex>
-      </Card>
+          </Box>
+        </Flex></Card>
 
-      {/* Upcoming Events */}
-      <Box mb="6">
-        <Flex align="center" gap="2" mb="4">
-          <StarIcon width={24} height={24} color="var(--yellow-9)" />
-          <Heading size="5">Upcoming Events</Heading>
-        </Flex>
-
-        {upcomingEvents.length === 0 ? (
-          <Card>
-            <Flex direction="column" align="center" py="6">
-              <CalendarIcon width={48} height={48} color="var(--gray-6)" style={{ marginBottom: "12px" }} />
-              <Text color="gray">No upcoming events</Text>
-            </Flex>
-          </Card>
-        ) : (
-          <Grid columns={{ initial: "1", md: "2", lg: "3" }} gap="4">
-            {upcomingEvents.map((event) => (
-              <Link
-                key={event._id}
-                to={`/events/${event._id}`}
-                style={{ textDecoration: "none" }}
-              >
-                <Card style={{ cursor: "pointer" }}>
-                  <Text weight="bold" size="3" mb="2">{event.name}</Text>
-                  <Flex align="center" gap="4">
-                    <Flex align="center" gap="1">
-                      <CalendarIcon width={14} height={14} />
-                      <Text size="2" color="gray">
-                        {format(new Date(event.startDate), "MMM d, yyyy")}
-                      </Text>
-                    </Flex>
-                    <Badge color="blue" size="1">{event.eventType}</Badge>
-                  </Flex>
-                </Card>
-              </Link>
-            ))}
-          </Grid>
-        )}
-      </Box>
-
-      {/* Past Events */}
-      <Box>
-        <Flex align="center" gap="2" mb="4">
-          <ClockIcon width={24} height={24} color="var(--gray-9)" />
-          <Heading size="5">Past Events</Heading>
-        </Flex>
-
-        {pastEvents.length === 0 ? (
-          <Card>
-            <Flex direction="column" align="center" py="6">
-              <ClockIcon width={48} height={48} color="var(--gray-6)" style={{ marginBottom: "12px" }} />
-              <Text color="gray">No past events</Text>
-            </Flex>
-          </Card>
-        ) : (
-          <Grid columns={{ initial: "1", md: "2", lg: "3" }} gap="4">
-            {pastEvents.map((event) => (
-              <Card key={event._id} style={{ opacity: 0.75 }}>
-                <Text weight="bold" size="3" mb="2">{event.name}</Text>
-                <Flex align="center" gap="4">
-                  <Flex align="center" gap="1">
-                    <CalendarIcon width={14} height={14} />
-                    <Text size="2" color="gray">
-                      {format(new Date(event.startDate), "MMM d, yyyy")}
-                    </Text>
-                  </Flex>
-                  <Badge color="green" size="1">Completed</Badge>
-                </Flex>
-              </Card>
-            ))}
-          </Grid>
-        )}
+        {upcoming.length > 0 && <Box mb="5"><Heading size="5" mb="3">Upcoming Events ({upcoming.length})</Heading><Grid columns={{ initial: "1", sm: "2" }} gap="4">{upcoming.map(e => <EventCard key={e._id} ev={e} />)}</Grid></Box>}
+        {past.length > 0 && <Box><Heading size="5" mb="3">Past Events ({past.length})</Heading><Grid columns={{ initial: "1", sm: "2" }} gap="4">{past.map(e => <EventCard key={e._id} ev={e} />)}</Grid></Box>}
+        {events.length === 0 && <Card><Flex align="center" justify="center" py="6"><Text color="gray">No events yet</Text></Flex></Card>}
       </Box>
     </Box>
   );

@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://fdasfu:halus@cluster.bdwvjim.mongodb.net/?appName=Cluster";
-
 const connectDB = async () => {
+  if (!process.env.MONGO_URI) { console.error("MONGO_URI environment variable is required"); process.exit(1); }
   try {
-    const conn = await mongoose.connect(MONGO_URI);
+    const conn = await mongoose.connect(process.env.MONGO_URI);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(error.message);

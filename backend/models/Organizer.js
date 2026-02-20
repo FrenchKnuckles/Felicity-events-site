@@ -10,7 +10,7 @@ const organizerSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, "Category is required"],
-      enum: ["club", "council", "fest-team", "other"],
+      enum: ["cultural", "technical", "sports", "other"],
     },
     description: {
       type: String,
