@@ -2,7 +2,7 @@ import User from "../models/User.js";
 import Organizer from "../models/Organizer.js";
 import Event from "../models/Event.js";
 import Ticket from "../models/Ticket.js";
-import Attendance from "../models/Attendance.js";
+import { Attendance } from "../models/Attendance.js";
 import Team from "../models/Team.js";
 import TeamChat from "../models/TeamChat.js";
 import PasswordResetRequest from "../models/PasswordResetRequest.js";
