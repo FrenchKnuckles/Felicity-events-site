@@ -33,7 +33,7 @@ export const getAllOrganizers = wrap(async (req, res) => {
 export const getOrganizerById = wrap(async (req, res) => {
   const org = await Organizer.findById(req.params.id).populate("userId", "email").lean();
   if (!org) return res.status(404).json({ message: "Organizer not found" });
-  res.json({ ...org, eventCount: await Event.countDocuments({ organizerId: org._id }) });
+  res.json({ organizer: org, eventCount: await Event.countDocuments({ organizerId: org._id }) });
 });
 
 export const updateOrganizer = wrap(async (req, res) => {

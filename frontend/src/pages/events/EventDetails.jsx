@@ -83,7 +83,11 @@ const EventDetails = () => {
         <Box style={{ gridColumn: "span 2" }}><Flex direction="column" gap="5">
           <Card>
             <Flex align="start" justify="between" mb="4"><Box><Flex align="center" gap="2" mb="2">{event.eventType === "merchandise" ? <Badge color="orange"><Flex align="center" gap="1"><BackpackIcon width={14} height={14} /><span>Merchandise</span></Flex></Badge> : <Badge color="blue">Event</Badge>}<Badge color={elig.color}>{elig.text}</Badge></Flex><Heading size="7">{event.name}</Heading></Box></Flex>
-            <Link to={`/organizers/${event.organizerId?._id}`} style={{ textDecoration: "none" }}><Text color="blue" weight="medium" mb="5" style={{ display: "inline-block" }}>{event.organizerId?.name}</Text></Link>
+            {event.organizerId?._id ? (
+              <Link to={`/organizers/${event.organizerId._id}`} style={{ textDecoration: "none" }}><Text color="blue" weight="medium" mb="5" style={{ display: "inline-block" }}>{event.organizerId.name}</Text></Link>
+            ) : (
+              <Text color="gray" weight="medium" mb="5" style={{ display: "inline-block" }}>Unknown Organizer</Text>
+            )}
             <Grid columns={{ initial: "1", md: "2" }} gap="4" mb="5">
               {[[CalendarIcon, "Date", format(new Date(event.startDate), "EEEE, MMMM d, yyyy") + (event.endDate && event.endDate !== event.startDate ? ` - ${format(new Date(event.endDate), "MMMM d, yyyy")}` : "")],
                [ClockIcon, "Time", format(new Date(event.startDate), "h:mm a")],

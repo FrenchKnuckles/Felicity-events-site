@@ -160,8 +160,8 @@ export const getOrganizerById = wrap(async (req, res) => {
   const org = await Organizer.findOne({ _id: req.params.id, isActive: true }).select("name category description contactEmail");
   if (!org) return res.status(404).json({ message: "Organizer not found" });
   const now = new Date();
-  const upcomingEvents = await Event.find({ organizerId: org._id, status: { $in: ["published", "ongoing"] }, startDate: { $gte: now } }).select("name eventType startDate");
-  const pastEvents = await Event.find({ organizerId: org._id, status: "completed" }).select("name eventType startDate");
+  const upcomingEvents = await Event.find({ organizerId: org._id, status: { $in: ["published", "ongoing"] }, startDate: { $gte: now } }).select("name eventType startDate description category");
+  const pastEvents = await Event.find({ organizerId: org._id, status: "completed" }).select("name eventType startDate description category");
   res.json({ organizer: org, upcomingEvents, pastEvents });
 });
 

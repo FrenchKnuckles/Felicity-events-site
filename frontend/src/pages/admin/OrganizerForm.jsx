@@ -22,12 +22,25 @@ const OrganizerForm = ({ mode = "create" }) => {
     (async () => {
       try {
         const data = await adminService.getOrganizerById(id);
-        const o = data?.organizer || data;
-        setFd({ name: o?.name || "", email: "", contactEmail: o?.contactEmail || o?.userId?.email || "", description: o?.description || "", logo: o?.logo || "", category: o?.category || "technical", contactNumber: o?.contactNumber || "", discordWebhook: o?.discordWebhook || "" });
-      } catch { toast.error("Failed to load organizer"); }
-      finally { setLoading(false); }
+        const o = data.organizer || data;
+        setFd({
+          name: o.name || "",
+          email: "",
+          contactEmail: o.contactEmail || o.userId?.email || "",
+          description: o.description || "",
+          logo: o.logo || "",
+          category: o.category || "technical",
+          contactNumber: o.contactNumber || "",
+          discordWebhook: o.discordWebhook || ""
+        });
+      } catch (err) {
+        console.error("Load org error:", err);
+        toast.error("Failed to load organizer");
+      } finally {
+        setLoading(false);
+      }
     })();
-  }, [id]);
+  }, [id, isEdit]);
 
   const onChange = (e) => { const { name, value } = e.target; setFd((p) => ({ ...p, [name]: value })); if (errors[name]) setErrors((p) => ({ ...p, [name]: "" })); };
   const copy = async (text, label) => { try { await navigator.clipboard.writeText(text); toast.success(`${label} copied`); } catch { window.prompt(`Copy ${label}:`, text); } };

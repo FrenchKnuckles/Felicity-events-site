@@ -15,7 +15,23 @@ const OrganizerDetail = () => {
   const [following, setFollowing] = useState(false);
   const [toggling, setToggling] = useState(false);
 
-  useEffect(() => { (async () => { try { const r = await organizerService.getById(id); setOrg(r.data.organizer || r.data); setFollowing(r.data.isFollowing || false); } catch { toast.error("Failed to load organizer"); } finally { setLoading(false); } })(); }, [id]);
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!id || id === "undefined" || id === "null") throw new Error("Invalid Organizer ID");
+        const r = await organizerService.getById(id);
+        setOrg({ ...(r.organizer || r), upcomingEvents: r.upcomingEvents, pastEvents: r.pastEvents });
+        setFollowing(r.isFollowing || false);
+      } catch (err) {
+        console.error("Load org error:", err);
+        const msg = err.response?.data?.message || err.message || "Failed to load organizer";
+        toast.error(msg);
+        setOrg(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
 
   const toggleFollow = async () => {
     try { setToggling(true); const r = await organizerService.toggleFollow(id); setFollowing(r.data.isFollowing); toast.success(r.data.isFollowing ? "Following!" : "Unfollowed"); }
@@ -25,14 +41,14 @@ const OrganizerDetail = () => {
   if (loading) return <Flex align="center" justify="center" style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }}><Spinner size="3" /></Flex>;
   if (!org) return <Flex align="center" justify="center" style={{ minHeight: "100vh" }}><Text>Organizer not found</Text></Flex>;
 
-  const events = org.events || [];
-  const upcoming = events.filter(e => new Date(e.date) >= new Date());
-  const past = events.filter(e => new Date(e.date) < new Date());
+  const upcoming = org.upcomingEvents || [];
+  const past = org.pastEvents || [];
+  const events = [...upcoming, ...past];
 
   const EventCard = ({ ev }) => (
     <Card style={{ cursor: "pointer" }} onClick={() => navigate(`/events/${ev._id}`)}>
       <Heading size="3" mb="1">{ev.name}</Heading>
-      <Flex gap="2" mb="2"><Badge color="blue" size="1"><CalendarIcon width={12} height={12} /> {new Date(ev.date).toLocaleDateString()}</Badge>{ev.category && <Badge color={catColors[ev.category] || "gray"} size="1">{ev.category}</Badge>}</Flex>
+      <Flex gap="2" mb="2"><Badge color="blue" size="1"><CalendarIcon width={12} height={12} /> {new Date(ev.startDate).toLocaleDateString()}</Badge>{ev.category && <Badge color={catColors[ev.category] || "gray"} size="1">{ev.category}</Badge>}</Flex>
       <Text size="2" color="gray" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ev.description}</Text>
     </Card>
   );
