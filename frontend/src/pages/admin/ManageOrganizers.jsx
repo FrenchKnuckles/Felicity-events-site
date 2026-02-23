@@ -65,7 +65,15 @@ const ManageOrganizers = () => {
         {filtered.length > 0 ? filtered.map(o => { const act = o.isActive !== false; return (
           <Card key={o._id} style={{ padding: 20, opacity: act ? 1 : 0.7, border: !act ? "1px solid var(--red-6)" : undefined }}>
             <Flex align="start" justify="between" mb="4"><Flex align="center" gap="3">
-              <Box style={{ padding: 12, backgroundColor: act ? "var(--purple-3)" : "var(--gray-3)", borderRadius: "50%" }}><AvatarIcon width={24} height={24} color={act ? "var(--purple-9)" : "var(--gray-9)"} /></Box>
+              {o.logo ? (
+                <Box style={{ padding: 0, backgroundColor: act ? "var(--purple-3)" : "var(--gray-3)", borderRadius: "50%" }}>
+                  <img src={o.logo} alt={o.name} style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover" }} />
+                </Box>
+              ) : (
+                <Box style={{ padding: 12, backgroundColor: act ? "var(--purple-3)" : "var(--gray-3)", borderRadius: "50%" }}>
+                  <AvatarIcon width={24} height={24} color={act ? "var(--purple-9)" : "var(--gray-9)"} />
+                </Box>
+              )}
               <Box><Flex align="center" gap="2"><Text weight="medium" style={{ display: "block" }}>{o.name}</Text><Badge color={act ? "green" : "red"} size="1">{act ? "Active" : "Disabled"}</Badge></Flex>
                 <Flex align="center" gap="1"><EnvelopeClosedIcon width={14} height={14} color="var(--gray-9)" /><Text size="1" color="gray">{o.contactEmail || o.userId?.email}</Text></Flex></Box>
             </Flex></Flex>
