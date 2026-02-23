@@ -33,8 +33,8 @@ export const eventService = {
   },
 
   // Purchase merchandise
-  purchase: async (eventId, variantId, quantity = 1, paymentProofUrl) => {
-    const response = await api.post(`/events/${eventId}/purchase`, { variantId, quantity, paymentProofUrl });
+  purchase: async (eventId, variantId, quantity = 1, paymentProof) => {
+    const response = await api.post(`/events/${eventId}/purchase`, { variantId, quantity, paymentProof });
     return response.data;
   },
 

@@ -42,7 +42,8 @@ const ticketSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected", "not-required"],
       default: "not-required",
     },
-    paymentProofUrl: {
+    // Stores base64-encoded image string for payment proof
+    paymentProof: {
       type: String,
     },
     // Ticket status

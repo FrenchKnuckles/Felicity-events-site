@@ -84,7 +84,7 @@ export const registerForEvent = wrap(async (req, res) => {
 });
 
 export const purchaseMerchandise = wrap(async (req, res) => {
-  const { variantId, quantity = 1, paymentProofUrl } = req.body;
+  const { variantId, quantity = 1, paymentProof } = req.body;
   const event = await Event.findById(req.params.id);
   if (!event || event.eventType !== "merchandise") return res.status(404).json({ message: "Merchandise event not found" });
   if (event.status !== "published" && event.status !== "ongoing") return res.status(400).json({ message: "Event is not open for purchase" });
@@ -96,10 +96,10 @@ export const purchaseMerchandise = wrap(async (req, res) => {
   if (variant.stock < quantity) return res.status(400).json({ message: "Insufficient stock" });
   const existing = await Ticket.countDocuments({ eventId: event._id, userId: req.user._id, status: { $ne: "cancelled" } });
   if (existing + quantity > event.purchaseLimitPerUser) return res.status(400).json({ message: `Purchase limit is ${event.purchaseLimitPerUser} per user` });
-  if (!paymentProofUrl) return res.status(400).json({ message: "Payment proof is required" });
+  if (!paymentProof) return res.status(400).json({ message: "Payment proof is required" });
   const ticketId = generateTicketId();
   const ticket = await Ticket.create({ ticketId, eventId: event._id, userId: req.user._id, variant: { size: variant.size, color: variant.color },
-    quantity, amount: variant.price * quantity, status: "pending", paymentStatus: "pending", paymentProofUrl });
+    quantity, amount: variant.price * quantity, status: "pending", paymentStatus: "pending", paymentProof });
   event.registrationCount += 1; await event.save();
   res.status(201).json({ message: "Purchase submitted! Your order is pending approval by the organizer.", ticket });
 });

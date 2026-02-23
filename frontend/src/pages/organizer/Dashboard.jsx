@@ -133,7 +133,17 @@ const OrganizerDashboard = () => {
                       <Badge color="blue">{ev.eventType}</Badge>
                     </Flex>
                     <Flex wrap="wrap" align="center" gap="4">
-                      <Flex align="center" gap="1"><ClockIcon width="16" height="16" /><Text size="2" color="gray">{format(new Date(ev.startDate), "MMM d, yyyy h:mm a")}</Text></Flex>
+                      <Flex align="center" gap="1"><ClockIcon width="16" height="16" />
+                        <Text size="2" color="gray">
+                          {ev.eventType === "merchandise"
+                            ? (ev.registrationDeadline && !isNaN(new Date(ev.registrationDeadline))
+                                ? `Reg. Deadline: ${format(new Date(ev.registrationDeadline), "MMM d, yyyy h:mm a")}`
+                                : "No deadline")
+                            : (ev.startDate && !isNaN(new Date(ev.startDate))
+                                ? format(new Date(ev.startDate), "MMM d, yyyy h:mm a")
+                                : "Invalid date")}
+                        </Text>
+                      </Flex>
                       <Flex align="center" gap="1"><PersonIcon width="16" height="16" /><Text size="2" color="gray">Registrations: {ev.registrationCount}</Text></Flex>
                       <Text size="2" color="gray">Revenue: ₹{ev.revenue || 0}</Text>
                     </Flex>

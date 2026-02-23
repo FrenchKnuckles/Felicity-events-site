@@ -58,6 +58,21 @@ export const getOrganizerEventById = wrap(async (req, res) => {
 export const createEvent = wrap(async (req, res) => {
   const org = await getOrg(req);
   if (!org) return res.status(404).json({ message: "Organizer not found" });
+
+  const { eventType } = req.body;
+
+  if (eventType === "merchandise") {
+    // Merchandise events: dates are optional, variants required
+    if (!req.body.registrationDeadline) return res.status(400).json({ message: "Registration deadline is required" });
+    if (!req.body.variants || req.body.variants.length === 0) return res.status(400).json({ message: "At least one variant is required for merchandise events" });
+    // Don't send null dates - remove them from payload
+    req.body.startDate = undefined;
+    req.body.endDate = undefined;
+  } else {
+    // Normal/Hackathon events: dates are required
+    if (!req.body.startDate || !req.body.endDate) return res.status(400).json({ message: "Start and end dates are required for this event type" });
+    if (!req.body.registrationDeadline) return res.status(400).json({ message: "Registration deadline is required" });
+  }
   const event = await Event.create({ ...req.body, organizerId: org._id, status: "draft" });
   res.status(201).json({ message: "Event created as draft", event });
 });
@@ -68,6 +83,18 @@ export const updateEvent = wrap(async (req, res) => {
   const org = await getOrg(req);
   if (event.organizerId.toString() !== org._id.toString()) return res.status(403).json({ message: "Not authorized to edit this event" });
   if (event.status === "draft") {
+    if (req.body.eventType === "merchandise") {
+      if (!req.body.registrationDeadline && !event.registrationDeadline) return res.status(400).json({ message: "Registration deadline is required" });
+      if (req.body.variants && req.body.variants.length === 0) return res.status(400).json({ message: "At least one variant is required for merchandise events" });
+      // Remove dates for merchandise
+      req.body.startDate = undefined;
+      req.body.endDate = undefined;
+    } else {
+      if (req.body.eventType && (req.body.eventType === "normal" || req.body.eventType === "hackathon")) {
+        if (!req.body.startDate && !event.startDate) return res.status(400).json({ message: "Start date is required for this event type" });
+        if (!req.body.endDate && !event.endDate) return res.status(400).json({ message: "End date is required for this event type" });
+      }
+    }
     if (event.formLocked && req.body.customForm) return res.status(400).json({ message: "Custom form cannot be edited after first registration" });
     Object.assign(event, req.body);
   } else if (event.status === "published") {
@@ -89,6 +116,12 @@ export const publishEvent = wrap(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) return res.status(404).json({ message: "Event not found" });
   if (event.status !== "draft") return res.status(400).json({ message: "Only draft events can be published" });
+  if (event.eventType === "merchandise") {
+    if (!event.variants || event.variants.length === 0) return res.status(400).json({ message: "Cannot publish merchandise event without variants" });
+  } else {
+    if (!event.startDate || !event.endDate) return res.status(400).json({ message: "Cannot publish event without start and end dates" });
+  }
+  if (!event.registrationDeadline) return res.status(400).json({ message: "Cannot publish event without registration deadline" });
   event.status = "published";
   await event.save();
   const org = await Organizer.findById(event.organizerId);
@@ -188,12 +221,24 @@ export const exportParticipantsCSV = wrap(async (req, res) => {
   if (event.organizerId.toString() !== org._id.toString()) return res.status(403).json({ message: "Not authorized" });
   const tickets = await Ticket.find({ eventId: req.params.id, status: { $ne: "cancelled" } })
     .populate("userId", "firstName lastName email contactNumber collegeOrg participantType").populate("teamId", "name");
-  const fields = ["Ticket ID", "First Name", "Last Name", "Email", "Contact Number", "College/Org", "Participant Type", "Team Name", "Status", "Attendance", "Registered At"];
+  let fields = ["Ticket ID", "First Name", "Last Name", "Email", "Contact Number", "College/Org", "Participant Type", "Team Name", "Status", "Attendance", "Registered At"];
+  // For merchandise events, add payment columns
+  if (event.eventType === "merchandise") {
+    fields = fields.concat(["Payment Status", "Payment Proof URL", "Order Status"]);
+  }
   if (event.customForm?.length) event.customForm.forEach(f => fields.push(f.label));
   let csv = fields.join(",") + "\n";
   tickets.forEach(t => {
-    const row = [t.ticketId, t.userId?.firstName || "", t.userId?.lastName || "", t.userId?.email || "", t.userId?.contactNumber || "",
+    let row = [t.ticketId, t.userId?.firstName || "", t.userId?.lastName || "", t.userId?.email || "", t.userId?.contactNumber || "",
       `"${t.userId?.collegeOrg || ""}"`, t.userId?.participantType || "", t.teamId?.name || "", t.status, t.attended ? "checked-in" : "not-checked", new Date(t.createdAt).toISOString()];
+    // Add payment info for merchandise
+    if (event.eventType === "merchandise") {
+      row = row.concat([
+        t.paymentStatus || "",
+        t.paymentProofUrl || "",
+        t.status || ""
+      ]);
+    }
     if (event.customForm?.length) event.customForm.forEach(f => {
       const v = t.formResponses?.get(f.fieldName) || t.formResponses?.[f.fieldName] || "";
       row.push(`"${String(v).replace(/"/g, '""')}"`);

@@ -130,7 +130,11 @@ const OrganizerEventDetail = () => {
             <Card>
               <Heading size="4" mb="4">Dates & Venue</Heading>
               <Flex direction="column" gap="3">
-                <Row l="Start Date" v={event.startDate ? format(new Date(event.startDate), "MMM d, yyyy h:mm a") : "N/A"} />
+                <Row l={event.eventType === "merchandise" ? "Reg. Deadline" : "Start Date"}
+                  v={event.eventType === "merchandise"
+                    ? (event.registrationDeadline ? format(new Date(event.registrationDeadline), "MMM d, yyyy h:mm a") : "No deadline")
+                    : (event.startDate ? format(new Date(event.startDate), "MMM d, yyyy h:mm a") : "N/A")}
+                />
                 <Row l="End Date" v={event.endDate ? format(new Date(event.endDate), "MMM d, yyyy h:mm a") : "N/A"} />
                 <Row l="Reg. Deadline" v={event.registrationDeadline ? format(new Date(event.registrationDeadline), "MMM d, yyyy h:mm a") : "N/A"} />
                 <Row l="Venue" v={event.venue || "Not specified"} />

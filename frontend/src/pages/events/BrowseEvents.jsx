@@ -31,7 +31,21 @@ const BrowseEvents = () => {
       {trending.length > 0 && <Box mb="6"><Flex align="center" gap="2" mb="4"><StarIcon width={24} height={24} color="orange" /><Heading size="5">Trending Now</Heading></Flex>
         <Grid columns={{ initial: "1", sm: "2", md: "3", lg: "5" }} gap="4">{trending.slice(0, 5).map((e, i) => <Link key={e._id} to={`/events/${e._id}`} style={{ textDecoration: "none" }}>
           <Card style={{ position: "relative", overflow: "hidden", cursor: "pointer" }}><Box style={{ position: "absolute", top: 8, left: 8 }}><Badge color="orange" size="1">#{i + 1} Trending</Badge></Box><Box pt="6"><Heading size="4" mb="1">{e.name}</Heading><Text size="2" color="gray">{e.organizerId?.name}</Text>
-            <Flex align="center" gap="4" mt="3"><Flex align="center" gap="1"><CalendarIcon width={14} height={14} /><Text size="2" color="gray">{format(new Date(e.startDate), "MMM d")}</Text></Flex><Flex align="center" gap="1"><PersonIcon width={14} height={14} /><Text size="2" color="gray">Registered: {e.registrationCount}</Text></Flex></Flex></Box></Card>
+            <Flex align="center" gap="4" mt="3">
+              <Flex align="center" gap="1">
+                <CalendarIcon width={14} height={14} />
+                <Text size="2" color="gray">
+                  {e.eventType === "merchandise"
+                    ? (e.registrationDeadline && !isNaN(new Date(e.registrationDeadline))
+                        ? `Reg. Deadline: ${format(new Date(e.registrationDeadline), "MMM d")}`
+                        : "No deadline")
+                    : (e.startDate && !isNaN(new Date(e.startDate))
+                        ? format(new Date(e.startDate), "MMM d")
+                        : "Invalid date")}
+                </Text>
+              </Flex>
+              <Flex align="center" gap="1"><PersonIcon width={14} height={14} /><Text size="2" color="gray">Registered: {e.registrationCount}</Text></Flex>
+            </Flex></Box></Card>
         </Link>)}</Grid></Box>}
 
       <Card mb="6"><form onSubmit={handleSearch}>
@@ -60,7 +74,19 @@ const BrowseEvents = () => {
           <Flex align="center" justify="center" mb="4" style={{ height: 160, background: "linear-gradient(135deg, var(--blue-3), var(--purple-3))", borderRadius: 8 }}>{e.eventType === "merchandise" ? <BackpackIcon width={48} height={48} color="var(--blue-6)" /> : <StarIcon width={48} height={48} color="var(--blue-6)" />}</Flex>
           <Flex align="start" justify="between" mb="2"><Heading size="3" style={{ lineHeight: 1.4 }}>{e.name}</Heading>{e.eventType === "merchandise" ? <Badge color="orange"><Flex align="center" gap="1"><BackpackIcon width={12} height={12} /><span>Merchandise</span></Flex></Badge> : <Badge color="blue">Event</Badge>}</Flex>
           <Text size="2" color="gray" mb="3">{e.organizerId?.name}</Text>
-          <Flex direction="column" gap="2"><Flex align="center" gap="2"><CalendarIcon width={14} height={14} color="gray" /><Text size="2" color="gray">{format(new Date(e.startDate), "EEEE, MMMM d, yyyy")}</Text></Flex>
+          <Flex direction="column" gap="2">
+            <Flex align="center" gap="2">
+              <CalendarIcon width={14} height={14} color="gray" />
+              <Text size="2" color="gray">
+                {e.eventType === "merchandise"
+                  ? (e.registrationDeadline && !isNaN(new Date(e.registrationDeadline))
+                      ? `Reg. Deadline: ${format(new Date(e.registrationDeadline), "EEEE, MMMM d, yyyy")}`
+                      : "No deadline")
+                  : (e.startDate && !isNaN(new Date(e.startDate))
+                      ? format(new Date(e.startDate), "EEEE, MMMM d, yyyy")
+                      : "Invalid date")}
+              </Text>
+            </Flex>
             {e.venue && <Flex align="center" gap="2"><PersonIcon width={14} height={14} color="gray" /><Text size="2" color="gray" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Venue: {e.venue}</Text></Flex>}</Flex>
           <Box mt="4" pt="4" style={{ borderTop: "1px solid var(--gray-a5)" }}><Flex align="center" justify="between"><Text weight="bold">{e.registrationFee > 0 ? `₹${e.registrationFee}` : "Free"}</Text><Flex align="center" gap="1"><PersonIcon width={14} height={14} /><Text size="2" color="gray">Registered: {e.registrationCount || 0}</Text></Flex></Flex></Box>
         </Card></Link>)}</Grid>}

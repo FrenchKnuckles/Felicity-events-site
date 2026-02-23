@@ -109,23 +109,17 @@ const EventDetails = () => {
   const uploadPaymentProof = async (file) => {
     if (!file) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("upload_preset", "felicity_unsigned");
-    try {
-      const r = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "felicity"}/image/upload`, { method: "POST", body: fd });
-      const d = await r.json();
-      if (d.secure_url) {
-        setPaymentProofUrl(d.secure_url);
-        toast.success("Payment proof uploaded!");
-      } else {
-        toast.error("Upload failed");
-      }
-    } catch {
-      toast.error("Upload failed");
-    } finally {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPaymentProofUrl(reader.result);
+      toast.success("Payment proof converted to base64!");
       setUploading(false);
-    }
+    };
+    reader.onerror = () => {
+      toast.error("Payment proof conversion failed");
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRegister = async () => {
@@ -239,7 +233,7 @@ const EventDetails = () => {
                     <Badge color={statusColors[ticket.status] || "gray"} size="2" mb="3" style={{ display: "block", textAlign: "center" }}>
                       Order {ticket.status === "confirmed" ? "Approved" : ticket.status === "pending" ? "Pending Approval" : ticket.status === "rejected" ? "Rejected" : ticket.status}
                     </Badge>
-                    {ticket.variant && <Text size="2" color="gray" mb="1" style={{ display: "block" }}>Variant: {ticket.variant.size} {ticket.variant.color}</Text>}
+                    {ticket.variant && <Text size="2" color="gray" mb="1" style={{ display: "block" }}>Variant: {[ticket.variant.size, ticket.variant.color].filter(Boolean).join(" / ")}</Text>}
                     <Text size="2" color="gray" mb="1" style={{ display: "block" }}>Amount: ₹{ticket.amount}</Text>
                     <Text size="2" color="gray" mb="2" style={{ display: "block" }}>Ticket ID: {ticket.ticketId}</Text>
                     {ticket.status === "confirmed" && ticket.qrCode && (
@@ -294,9 +288,9 @@ const EventDetails = () => {
                         style={{ fontSize: 13 }}
                       />
                       {uploading && <Flex align="center" gap="2" mt="1"><Spinner size="1" /><Text size="1" color="gray">Uploading...</Text></Flex>}
-                      {paymentProofUrl && (
+                      {paymentProof && (
                         <Box mt="2">
-                          <img src={paymentProofUrl} alt="Payment proof" style={{ maxWidth: "100%", maxHeight: 150, borderRadius: 6, border: "1px solid var(--gray-6)" }} />
+                          <img src={paymentProof} alt="Payment proof" style={{ maxWidth: "100%", maxHeight: 150, borderRadius: 6, border: "1px solid var(--gray-6)" }} />
                           <Text size="1" color="green" mt="1" style={{ display: "block" }}><CheckCircledIcon style={{ display: "inline", verticalAlign: "middle" }} /> Uploaded</Text>
                         </Box>
                       )}
@@ -304,7 +298,7 @@ const EventDetails = () => {
 
                     <Button
                       onClick={handlePurchase}
-                      disabled={submitting || !selectedVariant || !paymentProofUrl || deadlinePassed || notOpen || uploading}
+                      disabled={submitting || !selectedVariant || !paymentProof || deadlinePassed || notOpen || uploading}
                       style={{ width: "100%" }}
                       size="3"
                     >

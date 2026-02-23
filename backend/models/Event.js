@@ -50,11 +50,11 @@ const eventSchema = new mongoose.Schema(
     },
     startDate: {
       type: Date,
-      required: [true, "Start date is required"],
+      required: function() {return this.eventType !== "merchandise"; },
     },
     endDate: {
       type: Date,
-      required: [true, "End date is required"],
+      required: function() {return this.eventType !== "merchandise";}
     },
     venue: {
       type: String,

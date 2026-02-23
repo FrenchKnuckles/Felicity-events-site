@@ -61,7 +61,17 @@ const ParticipantDashboard = () => {
               <Card key={t._id} asChild style={{ cursor: "pointer" }}><Link to={`/events/${t.eventId?._id}`} style={{ textDecoration: "none" }}><Box>
                 <Flex align="center" gap="2" mb="2"><Badge color={t.eventId?.eventType === "merchandise" ? "orange" : "blue"} size="1">{t.eventId?.eventType === "merchandise" ? "Merchandise" : "Event"}</Badge><Badge color="green" size="1">Confirmed</Badge></Flex>
                 <Text as="p" size="3" weight="bold" mb="1">{t.eventId?.name}</Text><Text as="p" size="2" color="gray" mb="2">By: {t.eventId?.organizerId?.name}</Text>
-                <Flex align="center" gap="1"><CalendarIcon width={14} height={14} /><Text size="2" color="gray">{format(new Date(t.eventId.startDate), "PPp")}</Text></Flex>
+                <Flex align="center" gap="1"><CalendarIcon width={14} height={14} />
+                  <Text size="2" color="gray">
+                    {t.eventId?.eventType === "merchandise"
+                      ? (t.eventId?.registrationDeadline && !isNaN(new Date(t.eventId.registrationDeadline))
+                          ? `Reg. Deadline: ${format(new Date(t.eventId.registrationDeadline), "PPp")}`
+                          : "No deadline")
+                      : (t.eventId?.startDate && !isNaN(new Date(t.eventId.startDate))
+                          ? format(new Date(t.eventId.startDate), "PPp")
+                          : "Invalid date")}
+                  </Text>
+                </Flex>
               </Box></Link></Card>
             ))}
           </Grid>
@@ -121,7 +131,13 @@ const ParticipantDashboard = () => {
               <Card><Flex direction="column" gap="2">
                 <Box><Text size="1" color="gray">Event: </Text><Text as="p" weight="medium">{ticket.eventId?.name || "N/A"}</Text></Box>
                 <Flex gap="4"><Box><Text size="1" color="gray">Type: </Text><Badge color={ticket.eventId?.eventType === "merchandise" ? "orange" : "blue"} size="1">{ticket.eventId?.eventType === "merchandise" ? "Merchandise" : "Normal"}</Badge></Box><Box><Text size="1" color="gray">Status: </Text><Badge color={statusColors[ticket.status] || "blue"} size="1">{ticket.status?.charAt(0).toUpperCase() + ticket.status?.slice(1)}</Badge></Box></Flex>
-                {ticket.eventId?.startDate && <Box><Text size="1" color="gray">Date & Time: </Text><Text as="p">{format(new Date(ticket.eventId.startDate), "PPPp")}</Text></Box>}
+                {(ticket.eventId?.eventType === "merchandise")
+                  ? (ticket.eventId?.registrationDeadline && !isNaN(new Date(ticket.eventId.registrationDeadline))
+                    ? <Box><Text size="1" color="gray">Reg. Deadline: </Text><Text as="p">{format(new Date(ticket.eventId.registrationDeadline), "PPPp")}</Text></Box>
+                    : <Box><Text size="1" color="gray">Reg. Deadline: </Text><Text as="p">No deadline</Text></Box>)
+                  : (ticket.eventId?.startDate && !isNaN(new Date(ticket.eventId.startDate))
+                    ? <Box><Text size="1" color="gray">Date & Time: </Text><Text as="p">{format(new Date(ticket.eventId.startDate), "PPPp")}</Text></Box>
+                    : null)}
                 {ticket.eventId?.venue && <Box><Text size="1" color="gray">Venue: </Text><Text as="p">{ticket.eventId.venue}</Text></Box>}
               </Flex></Card>
               <Card><Flex direction="column" gap="2">
