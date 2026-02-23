@@ -39,9 +39,13 @@ const OrganizersListing = () => {
 
         {filtered.length === 0 ? <Card><Flex align="center" justify="center" py="6"><Text color="gray">{search ? "No organizers match your search" : "No organizers found"}</Text></Flex></Card>
         : <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">{filtered.map(o => (
-          <Card key={o._id} style={{ cursor: "pointer" }} onClick={() => navigate(`/organizer/${o._id}`)}>
+          <Card key={o._id} style={{ cursor: "pointer" }} onClick={() => navigate(`/organizers/${o._id}`)}>
             <Flex direction="column" align="center" py="3">
-              <Flex align="center" justify="center" style={{ width: 64, height: 64, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 24, marginBottom: 12 }}>{o.name?.charAt(0) || "O"}</Flex>
+              {o.logo ? (
+                <img src={o.logo} alt={o.name} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", marginBottom: 12 }} />
+              ) : (
+                <Flex align="center" justify="center" style={{ width: 64, height: 64, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 24, marginBottom: 12 }}>{o.name?.charAt(0) || "O"}</Flex>
+              )}
               <Heading size="4" mb="1" align="center">{o.name}</Heading>
               <Badge color={catColors[o.category] || "gray"} mb="2">{o.category || "Organization"}</Badge>
               {o.description && <Text size="2" color="gray" align="center" mb="3" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{o.description}</Text>}

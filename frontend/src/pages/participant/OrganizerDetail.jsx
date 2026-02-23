@@ -59,7 +59,11 @@ const OrganizerDetail = () => {
         <Button variant="ghost" mb="4" onClick={() => navigate(-1)}><ArrowLeftIcon /> Back</Button>
 
         <Card mb="5"><Flex gap="5" align="start" wrap="wrap">
-          <Flex align="center" justify="center" style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 32 }}>{org.name?.charAt(0) || "O"}</Flex>
+          {org.logo ? (
+            <img src={org.logo} alt={org.name} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <Flex align="center" justify="center" style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 32 }}>{org.name?.charAt(0) || "O"}</Flex>
+          )}
           <Box style={{ flex: 1 }}>
             <Flex justify="between" align="start"><Box><Heading size="6">{org.name}</Heading><Badge color={catColors[org.category] || "gray"} mt="1">{org.category || "Organization"}</Badge></Box>
               <Button onClick={toggleFollow} disabled={toggling} variant={following ? "soft" : "solid"} color={following ? "gray" : "blue"}>{following ? "Following" : "Follow"}</Button>

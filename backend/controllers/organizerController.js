@@ -176,7 +176,7 @@ export const requestPasswordReset = wrap(async (req, res) => {
 });
 
 export const listOrganizers = wrap(async (req, res) => {
-  const orgs = await Organizer.find({ isActive: true }).select("name category description contactEmail followers");
+  const orgs = await Organizer.find({ isActive: true }).select("name category description contactEmail followers logo");
   const orgIds = orgs.map(o => o._id);
   const eventCounts = await Event.aggregate([
     { $match: { organizerId: { $in: orgIds }, status: { $in: ["published", "ongoing", "completed"] } } },
@@ -186,13 +186,14 @@ export const listOrganizers = wrap(async (req, res) => {
   const userId = req.user?._id?.toString();
   res.json(orgs.map(o => ({
     _id: o._id, name: o.name, category: o.category, description: o.description,
+    logo: o.logo,
     followerCount: o.followers?.length || 0, eventCount: ecMap[o._id.toString()] || 0,
     isFollowing: userId ? o.followers?.some(f => f.toString() === userId) : false,
   })));
 });
 
 export const getOrganizerById = wrap(async (req, res) => {
-  const org = await Organizer.findOne({ _id: req.params.id, isActive: true }).select("name category description contactEmail");
+  const org = await Organizer.findOne({ _id: req.params.id, isActive: true }).select("name category description contactEmail logo");
   if (!org) return res.status(404).json({ message: "Organizer not found" });
   const now = new Date();
   const upcomingEvents = await Event.find({ organizerId: org._id, status: { $in: ["published", "ongoing"] }, startDate: { $gte: now } }).select("name eventType startDate description category");

@@ -178,9 +178,16 @@ const EventDetails = () => {
           <Heading size="7" mb="3">{event.name}</Heading>
 
           {event.organizerId && (
-            <Text size="2" color="gray" mb="4" style={{ display: "block" }}>
-              Organized by <Text weight="medium">{event.organizerId.name || event.organizerId}</Text>
-            </Text>
+            <Flex align="center" gap="2" mb="4">
+              {event.organizerId.logo ? (
+                <img src={event.organizerId.logo} alt={event.organizerId.name} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                <Flex align="center" justify="center" style={{ width: 32, height: 32, borderRadius: "50%", backgroundColor: "var(--blue-9)", color: "white", fontSize: 16 }}>{event.organizerId.name?.charAt(0) || "O"}</Flex>
+              )}
+              <Text size="2" color="gray">
+                Organized by <Text weight="medium">{event.organizerId.name || event.organizerId}</Text>
+              </Text>
+            </Flex>
           )}
 
           <Card mb="4">
