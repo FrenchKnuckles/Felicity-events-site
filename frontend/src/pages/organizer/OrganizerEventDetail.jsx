@@ -7,6 +7,7 @@ import { Box, Card, Flex, Text, Button, Heading, Badge, Grid, Spinner, Tabs, Tab
 import { ArrowLeftIcon, DownloadIcon, MagnifyingGlassIcon, CheckCircledIcon, CrossCircledIcon, ClockIcon, PersonIcon, EnvelopeClosedIcon, MixerHorizontalIcon, Pencil1Icon, CalendarIcon, GlobeIcon } from "@radix-ui/react-icons";
 
 const sc = s => ({ draft: "gray", published: "green", ongoing: "blue", completed: "purple", closed: "red" }[s] || "gray");
+const orderStatusColor = s => ({ pending: "orange", confirmed: "green", rejected: "red", cancelled: "gray" }[s] || "gray");
 
 const OrganizerEventDetail = () => {
   const { id } = useParams();
@@ -21,6 +22,13 @@ const OrganizerEventDetail = () => {
   const [checkInF, setCheckInF] = useState("all");
   const [instF, setInstF] = useState("all");
   const [exporting, setExporting] = useState(false);
+
+  // Merchandise orders state
+  const [merchOrders, setMerchOrders] = useState([]);
+  const [merchLoading, setMerchLoading] = useState(false);
+  const [merchStatusFilter, setMerchStatusFilter] = useState("all");
+  const [merchCounts, setMerchCounts] = useState({});
+  const [actioningId, setActioningId] = useState(null);
 
   useEffect(() => { fetchAll(); }, [id]);
   useEffect(() => {
@@ -37,8 +45,41 @@ const OrganizerEventDetail = () => {
       const [eRes, aRes] = await Promise.all([organizerService.getEventDetails(id), organizerService.getEventAnalytics(id).catch(() => null)]);
       const ev = eRes?.event || eRes; setEvent(ev); setAnalytics(aRes);
       try { const pRes = await organizerService.getParticipants(id); setParticipants(pRes?.participants || []); } catch { setParticipants([]); }
+      if (ev?.eventType === "merchandise") fetchMerchOrders();
     } catch { toast.error("Failed to fetch event details"); navigate("/organizer/dashboard"); }
     finally { setLoading(false); }
+  };
+
+  const fetchMerchOrders = async (statusFilter) => {
+    setMerchLoading(true);
+    try {
+      const params = {};
+      if (statusFilter && statusFilter !== "all") params.status = statusFilter;
+      const res = await organizerService.getMerchandiseOrders(id, params);
+      setMerchOrders(res?.orders || []);
+      setMerchCounts(res?.counts || {});
+    } catch { toast.error("Failed to fetch merchandise orders"); }
+    finally { setMerchLoading(false); }
+  };
+
+  const handleApprove = async (ticketId) => {
+    setActioningId(ticketId);
+    try {
+      await organizerService.approveMerchandiseOrder(id, ticketId);
+      toast.success("Order approved! Ticket generated & email sent.");
+      fetchMerchOrders(merchStatusFilter);
+    } catch (e) { toast.error(e.response?.data?.message || "Failed to approve order"); }
+    finally { setActioningId(null); }
+  };
+
+  const handleReject = async (ticketId) => {
+    setActioningId(ticketId);
+    try {
+      await organizerService.rejectMerchandiseOrder(id, ticketId);
+      toast.success("Order rejected.");
+      fetchMerchOrders(merchStatusFilter);
+    } catch (e) { toast.error(e.response?.data?.message || "Failed to reject order"); }
+    finally { setActioningId(null); }
   };
 
   const exportCSV = async () => {
@@ -73,7 +114,7 @@ const OrganizerEventDetail = () => {
       </Flex>
 
       <Tabs.Root defaultValue="overview">
-        <Tabs.List mb="6"><Tabs.Trigger value="overview">Overview</Tabs.Trigger><Tabs.Trigger value="analytics">Analytics</Tabs.Trigger><Tabs.Trigger value="participants">Participants ({participants.length})</Tabs.Trigger></Tabs.List>
+        <Tabs.List mb="6"><Tabs.Trigger value="overview">Overview</Tabs.Trigger><Tabs.Trigger value="analytics">Analytics</Tabs.Trigger><Tabs.Trigger value="participants">Participants ({participants.length})</Tabs.Trigger>{event.eventType === "merchandise" && <Tabs.Trigger value="orders">Merchandise Orders</Tabs.Trigger>}</Tabs.List>
 
         <Tabs.Content value="overview">
           <Grid columns={{ initial: "1", md: "2" }} gap="6">
@@ -163,6 +204,100 @@ const OrganizerEventDetail = () => {
             </Table.Root>
           </Card>
         </Tabs.Content>
+
+        {event.eventType === "merchandise" && (
+          <Tabs.Content value="orders">
+            {/* Summary counts */}
+            <Grid columns={{ initial: "2", md: "4" }} gap="4" mb="4">
+              {[
+                { l: "Pending", v: merchCounts.pending ?? 0, c: "orange" },
+                { l: "Approved", v: merchCounts.confirmed ?? 0, c: "green" },
+                { l: "Rejected", v: merchCounts.rejected ?? 0, c: "red" },
+                { l: "Cancelled", v: merchCounts.cancelled ?? 0, c: "gray" },
+              ].map(s => (
+                <Card key={s.l}><Flex direction="column" align="center"><Text size="5" weight="bold" color={s.c}>{s.v}</Text><Text size="2" color="gray">{s.l}</Text></Flex></Card>
+              ))}
+            </Grid>
+
+            {/* Filter */}
+            <Card mb="4">
+              <Flex align="center" gap="3">
+                <MixerHorizontalIcon width="16" height="16" color="gray" />
+                <Select.Root value={merchStatusFilter} onValueChange={v => { setMerchStatusFilter(v); fetchMerchOrders(v); }}>
+                  <Select.Trigger placeholder="Filter by status" />
+                  <Select.Content>
+                    <Select.Item value="all">All Orders</Select.Item>
+                    <Select.Item value="pending">Pending</Select.Item>
+                    <Select.Item value="confirmed">Approved</Select.Item>
+                    <Select.Item value="rejected">Rejected</Select.Item>
+                    <Select.Item value="cancelled">Cancelled</Select.Item>
+                  </Select.Content>
+                </Select.Root>
+                <Button variant="soft" size="1" onClick={() => fetchMerchOrders(merchStatusFilter)}>Refresh</Button>
+              </Flex>
+            </Card>
+
+            {/* Orders table */}
+            <Card>
+              {merchLoading ? (
+                <Flex align="center" justify="center" py="6"><Spinner size="2" /></Flex>
+              ) : (
+                <Table.Root>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.ColumnHeaderCell>Buyer</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Variant</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Payment Proof</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Date</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Actions</Table.ColumnHeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {merchOrders.length > 0 ? merchOrders.map(o => (
+                      <Table.Row key={o._id}>
+                        <Table.Cell>
+                          <Box>
+                            <Text weight="medium" size="2">{o.userId?.firstName} {o.userId?.lastName}</Text>
+                            <Flex align="center" gap="1"><EnvelopeClosedIcon width="12" height="12" color="gray" /><Text size="1" color="gray">{o.userId?.email || "N/A"}</Text></Flex>
+                          </Box>
+                        </Table.Cell>
+                        <Table.Cell><Text size="2">{o.variant?.size} {o.variant?.color}</Text></Table.Cell>
+                        <Table.Cell><Text size="2" weight="medium">₹{o.amount}</Text></Table.Cell>
+                        <Table.Cell>
+                          {o.paymentProofUrl ? (
+                            <a href={o.paymentProofUrl} target="_blank" rel="noopener noreferrer">
+                              <img src={o.paymentProofUrl} alt="Proof" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 4, border: "1px solid var(--gray-6)", cursor: "pointer" }} />
+                            </a>
+                          ) : <Text size="1" color="gray">None</Text>}
+                        </Table.Cell>
+                        <Table.Cell><Badge color={orderStatusColor(o.status)} size="1">{o.status === "confirmed" ? "Approved" : o.status}</Badge></Table.Cell>
+                        <Table.Cell><Text size="1" color="gray">{o.createdAt ? format(new Date(o.createdAt), "MMM d, h:mm a") : ""}</Text></Table.Cell>
+                        <Table.Cell>
+                          {o.status === "pending" ? (
+                            <Flex gap="2">
+                              <Button size="1" color="green" variant="soft" disabled={actioningId === o._id} onClick={() => handleApprove(o._id)}>
+                                <CheckCircledIcon width="14" height="14" /> Approve
+                              </Button>
+                              <Button size="1" color="red" variant="soft" disabled={actioningId === o._id} onClick={() => handleReject(o._id)}>
+                                <CrossCircledIcon width="14" height="14" /> Reject
+                              </Button>
+                            </Flex>
+                          ) : <Text size="1" color="gray">—</Text>}
+                        </Table.Cell>
+                      </Table.Row>
+                    )) : (
+                      <Table.Row>
+                        <Table.Cell colSpan={7}><Flex justify="center" py="6"><Text color="gray">No merchandise orders found</Text></Flex></Table.Cell>
+                      </Table.Row>
+                    )}
+                  </Table.Body>
+                </Table.Root>
+              )}
+            </Card>
+          </Tabs.Content>
+        )}
       </Tabs.Root>
     </Box>
   );

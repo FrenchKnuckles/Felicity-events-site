@@ -99,6 +99,18 @@ export const organizerService = {
     const response = await api.post("/organizers/me/request-password-reset", { reason });
     return response.data;
   },
+  getMerchandiseOrders: async (eventId, params = {}) => {
+    const response = await api.get(`/organizers/me/events/${eventId}/merchandise-orders`, { params });
+    return response.data;
+  },
+  approveMerchandiseOrder: async (eventId, ticketId) => {
+    const response = await api.put(`/organizers/me/events/${eventId}/merchandise-orders/${ticketId}/approve`);
+    return response.data;
+  },
+  rejectMerchandiseOrder: async (eventId, ticketId) => {
+    const response = await api.put(`/organizers/me/events/${eventId}/merchandise-orders/${ticketId}/reject`);
+    return response.data;
+  },
 };
 
 export default organizerService;

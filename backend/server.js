@@ -7,8 +7,6 @@ import {
   eventRoutes, 
   organizerRoutes, 
   adminRoutes,
-  teamRoutes,
-  teamChatRoutes,
   attendanceRoutes,
 } from "./routes/index.js";
 import { errorHandler, notFound } from "./middleware/index.js";
@@ -33,8 +31,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/organizers", organizerRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/teams", teamRoutes);
-app.use("/api/team-chat", teamChatRoutes);
 app.use("/api/attendance", attendanceRoutes);
 
 // File upload endpoint (Cloudinary proxy)

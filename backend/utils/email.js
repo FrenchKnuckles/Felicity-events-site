@@ -1,15 +1,21 @@
 import nodemailer from "nodemailer";
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Lazy transporter – created on first use so dotenv.config() has already run
+let _transporter;
+function getTransporter() {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+  return _transporter;
+}
 
 // Generic send email function
 export const sendEmail = async ({ to, subject, html }) => {
@@ -21,7 +27,7 @@ export const sendEmail = async ({ to, subject, html }) => {
       html,
     };
 
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
     console.log(`Email sent to ${to}`);
     return true;
   } catch (error) {
@@ -64,7 +70,7 @@ export const sendTicketEmail = async (user, event, ticket) => {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
     console.log(`Ticket email sent to ${user.email}`);
   } catch (error) {
     console.error("Error sending ticket email:", error);

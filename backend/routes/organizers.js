@@ -17,6 +17,9 @@ import {
   exportParticipantsCSV,
   getEventAnalytics,
   deleteEvent,
+  getMerchandiseOrders,
+  approveMerchandiseOrder,
+  rejectMerchandiseOrder,
 } from "../controllers/organizerController.js";
 import { protect, authorize, optionalAuth } from "../middleware/auth.js";
 
@@ -35,6 +38,9 @@ router.put("/me/events/:id/publish", protect, authorize("organizer"), publishEve
 router.get("/me/events/:id/participants", protect, authorize("organizer"), getEventParticipants);
 router.get("/me/events/:id/export-csv", protect, authorize("organizer"), exportParticipantsCSV);
 router.get("/me/events/:id/analytics", protect, authorize("organizer"), getEventAnalytics);
+router.get("/me/events/:id/merchandise-orders", protect, authorize("organizer"), getMerchandiseOrders);
+router.put("/me/events/:id/merchandise-orders/:ticketId/approve", protect, authorize("organizer"), approveMerchandiseOrder);
+router.put("/me/events/:id/merchandise-orders/:ticketId/reject", protect, authorize("organizer"), rejectMerchandiseOrder);
 router.get("/me/analytics", protect, authorize("organizer"), getOrganizerAnalytics);
 router.post("/me/request-password-reset", protect, authorize("organizer"), requestPasswordReset);
 

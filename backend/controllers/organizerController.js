@@ -4,6 +4,8 @@ import Ticket from "../models/Ticket.js";
 import User from "../models/User.js";
 import PasswordResetRequest from "../models/PasswordResetRequest.js";
 import { postToDiscord } from "../utils/discord.js";
+import { generateTicketId, generateQRCode } from "../utils/ticket.js";
+import { sendTicketEmail } from "../utils/email.js";
 import { wrap } from "../middleware/error.js";
 
 const getOrg = req => Organizer.findOne({ userId: req.user._id });
@@ -248,4 +250,78 @@ export const deleteEvent = wrap(async (req, res) => {
   if (event.status !== "draft") return res.status(400).json({ message: "Only draft events can be deleted" });
   await Event.findByIdAndDelete(req.params.id);
   res.json({ message: "Event deleted successfully" });
+});
+
+// ─── Merchandise Order Management ───
+export const getMerchandiseOrders = wrap(async (req, res) => {
+  const org = await getOrg(req);
+  if (!org) return res.status(404).json({ message: "Organizer not found" });
+  const event = await Event.findById(req.params.id);
+  if (!event) return res.status(404).json({ message: "Event not found" });
+  if (event.organizerId.toString() !== org._id.toString()) return res.status(403).json({ message: "Not authorized" });
+  if (event.eventType !== "merchandise") return res.status(400).json({ message: "This is not a merchandise event" });
+  const { status, page = 1, limit = 50 } = req.query;
+  const query = { eventId: event._id };
+  if (status) query.status = status;
+  const total = await Ticket.countDocuments(query);
+  const orders = await Ticket.find(query)
+    .populate("userId", "firstName lastName email contactNumber collegeOrg participantType")
+    .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(parseInt(limit));
+  const counts = {
+    pending: await Ticket.countDocuments({ eventId: event._id, status: "pending" }),
+    confirmed: await Ticket.countDocuments({ eventId: event._id, status: "confirmed" }),
+    rejected: await Ticket.countDocuments({ eventId: event._id, status: "rejected" }),
+    cancelled: await Ticket.countDocuments({ eventId: event._id, status: "cancelled" }),
+  };
+  res.json({ orders, counts, page: parseInt(page), pages: Math.ceil(total / limit), total });
+});
+
+export const approveMerchandiseOrder = wrap(async (req, res) => {
+  const org = await getOrg(req);
+  if (!org) return res.status(404).json({ message: "Organizer not found" });
+  const event = await Event.findById(req.params.id);
+  if (!event) return res.status(404).json({ message: "Event not found" });
+  if (event.organizerId.toString() !== org._id.toString()) return res.status(403).json({ message: "Not authorized" });
+  if (event.eventType !== "merchandise") return res.status(400).json({ message: "This is not a merchandise event" });
+  const ticket = await Ticket.findById(req.params.ticketId).populate("userId");
+  if (!ticket) return res.status(404).json({ message: "Order not found" });
+  if (ticket.eventId.toString() !== event._id.toString()) return res.status(400).json({ message: "Order does not belong to this event" });
+  if (ticket.status !== "pending") return res.status(400).json({ message: "Only pending orders can be approved" });
+  // Find variant and decrement stock
+  const variant = event.variants.find(v => v.size === ticket.variant?.size && v.color === ticket.variant?.color);
+  if (variant) {
+    if (variant.stock < ticket.quantity) return res.status(400).json({ message: `Insufficient stock for ${variant.size} ${variant.color}. Available: ${variant.stock}` });
+    variant.stock -= ticket.quantity;
+  }
+  event.revenue += ticket.amount;
+  await event.save();
+  // Generate QR code
+  const qrCode = await generateQRCode(ticket.ticketId, event._id, ticket.userId._id);
+  ticket.status = "confirmed";
+  ticket.paymentStatus = "approved";
+  ticket.qrCode = qrCode;
+  await ticket.save();
+  // Send confirmation email
+  try { await sendTicketEmail(ticket.userId, event, ticket); } catch (e) { console.error("Email sending failed:", e); }
+  res.json({ message: "Order approved successfully", ticket });
+});
+
+export const rejectMerchandiseOrder = wrap(async (req, res) => {
+  const org = await getOrg(req);
+  if (!org) return res.status(404).json({ message: "Organizer not found" });
+  const event = await Event.findById(req.params.id);
+  if (!event) return res.status(404).json({ message: "Event not found" });
+  if (event.organizerId.toString() !== org._id.toString()) return res.status(403).json({ message: "Not authorized" });
+  if (event.eventType !== "merchandise") return res.status(400).json({ message: "This is not a merchandise event" });
+  const ticket = await Ticket.findById(req.params.ticketId);
+  if (!ticket) return res.status(404).json({ message: "Order not found" });
+  if (ticket.eventId.toString() !== event._id.toString()) return res.status(400).json({ message: "Order does not belong to this event" });
+  if (ticket.status !== "pending") return res.status(400).json({ message: "Only pending orders can be rejected" });
+  ticket.status = "rejected";
+  ticket.paymentStatus = "rejected";
+  await ticket.save();
+  // Decrement registration count  
+  event.registrationCount = Math.max(0, event.registrationCount - 1);
+  await event.save();
+  res.json({ message: "Order rejected", ticket });
 });

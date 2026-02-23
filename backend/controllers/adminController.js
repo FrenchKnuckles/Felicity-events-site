@@ -3,8 +3,6 @@ import Organizer from "../models/Organizer.js";
 import Event from "../models/Event.js";
 import Ticket from "../models/Ticket.js";
 import { Attendance } from "../models/Attendance.js";
-import Team from "../models/Team.js";
-import TeamChat from "../models/TeamChat.js";
 import PasswordResetRequest from "../models/PasswordResetRequest.js";
 import crypto from "crypto";
 import { wrap } from "../middleware/error.js";
@@ -57,9 +55,6 @@ export const removeOrganizer = wrap(async (req, res) => {
   if (!org) return res.status(404).json({ message: "Organizer not found" });
   if (req.query.action === "delete") {
     const eventIds = (await Event.find({ organizerId: org._id }).select("_id")).map(e => e._id);
-    const teamIds = (await Team.find({ eventId: { $in: eventIds } }).select("_id")).map(t => t._id);
-    await TeamChat.deleteMany({ team: { $in: teamIds } });
-    await Team.deleteMany({ eventId: { $in: eventIds } });
     await Attendance.deleteMany({ eventId: { $in: eventIds } });
     await Ticket.deleteMany({ eventId: { $in: eventIds } });
     await Event.deleteMany({ organizerId: org._id });

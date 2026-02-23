@@ -1,6 +1,6 @@
 # Felicity Backend — API Server
 
-Express.js REST API powering the Felicity Event Management System. Handles authentication, event management, team coordination, attendance tracking, and all business logic.
+Express.js REST API powering the Felicity Event Management System. Handles authentication, event management, merchandise payment approval, attendance tracking, and all business logic.
 
 ## File Structure
 
@@ -16,10 +16,8 @@ backend/
 ├── controllers/
 │   ├── authController.js        # Authentication & user management
 │   ├── eventController.js       # Events, registration, merchandise
-│   ├── organizerController.js   # Organizer profile & event ops
+│   ├── organizerController.js   # Organizer profile, event ops & merchandise approval
 │   ├── adminController.js       # Admin panel operations
-│   ├── teamController.js        # Hackathon team management
-│   ├── teamChatController.js    # Team messaging system
 │   └── attendanceController.js  # QR scanning & check-in
 │
 ├── middleware/
@@ -30,20 +28,16 @@ backend/
 ├── models/
 │   ├── User.js                  # User accounts (all roles)
 │   ├── Event.js                 # Events with form builder schema
-│   ├── Ticket.js                # Registration tickets & QR codes
+│   ├── Ticket.js                # Registration tickets, QR codes & payment proof
 │   ├── Organizer.js             # Club/organizer profiles
-│   ├── Team.js                  # Hackathon teams & invites
-│   ├── TeamChat.js              # Chat rooms & messages
 │   ├── Attendance.js            # Check-in records & audit logs
 │   └── PasswordResetRequest.js  # Organizer password reset queue
 │
 ├── routes/
 │   ├── auth.js                  # /api/auth/*
 │   ├── events.js                # /api/events/*
-│   ├── organizers.js            # /api/organizers/*
+│   ├── organizers.js            # /api/organizers/* (includes merchandise order management)
 │   ├── admin.js                 # /api/admin/*
-│   ├── teams.js                 # /api/teams/*
-│   ├── teamChat.js              # /api/team-chat/*
 │   ├── attendance.js            # /api/attendance/*
 │   └── index.js                 # Barrel exports
 │
@@ -65,7 +59,7 @@ backend/
 ### Root Files
 
 #### `server.js`
-Application entry point. Initializes Express v5, connects to MongoDB via `config/db.js`, sets up CORS (restricts to `FRONTEND_URL`), JSON body parsing (10 MB limit), and mounts all 7 route groups under `/api`. Also contains an inline Cloudinary proxy endpoint (`POST /api/upload`) using Multer for memory-based file handling — the frontend sends files here, and the server forwards them to Cloudinary so that API keys stay server-side.
+Application entry point. Initializes Express v5, connects to MongoDB via `config/db.js`, sets up CORS (restricts to `FRONTEND_URL`), JSON body parsing (10 MB limit), and mounts all 5 route groups under `/api`. Also contains an inline Cloudinary proxy endpoint (`POST /api/upload`) using Multer for memory-based file handling — the frontend sends files here, and the server forwards them to Cloudinary so that API keys stay server-side.
 
 **Connects to:** `config/db.js`, all `routes/*.js`, `middleware/index.js`
 
@@ -104,7 +98,7 @@ Public event browsing, search, registration, merchandise purchase, and ticket ma
 - `getTrendingEvents` — Aggregates ticket counts from last 24 hours, returns top 5 events
 - `getEventById` — Full event details with organizer name populated
 - `registerForEvent` — Validates eligibility, deadline, capacity; processes custom form responses; generates ticket with QR code; sends confirmation email; increments registration count
-- `purchaseMerchandise` — Validates variant stock; decrements stock atomically; generates ticket; sends email
+- `purchaseMerchandise` — Validates variant stock and payment proof upload; creates ticket with `status: "pending"` and `paymentStatus: "pending"`; no QR generated or stock decremented until organizer approval
 - `getMyEvents` — All tickets for authenticated user (upcoming/past/cancelled)
 - `getTicketById` — Single ticket details with event info
 - `cancelRegistration` — Marks ticket cancelled, decrements registration count, restores merchandise stock
@@ -120,8 +114,11 @@ Organizer self-service: profile management, event CRUD, analytics, and public or
 - `createEvent` — Creates event as "draft" linked to organizer's ID
 - `updateEvent` — Status-dependent editing rules: Draft (free edit), Published (limited to description/deadline/limit/status), Ongoing/Completed (status change only)
 - `publishEvent` — Transitions draft → published, triggers Discord webhook post if configured
-- `getEventParticipants` — Paginated participant list with search, populates user details and team info
+- `getEventParticipants` — Paginated participant list with search, populates user details
 - `exportParticipantsCSV` — Generates CSV with all ticket data including custom form responses
+- `getMerchandiseOrders` — Lists tickets for a merchandise event with status counts (pending/confirmed/rejected/cancelled), supports status filter and pagination
+- `approveMerchandiseOrder` — Validates pending status, decrements variant stock, generates QR code, sets status to confirmed/approved, sends ticket email
+- `rejectMerchandiseOrder` — Sets status to rejected, decrements registration count
 - `getOrganizerAnalytics` — Aggregate stats: total events by status, registrations, revenue, attendance rates
 - `deleteEvent` — Removes draft events only
 - `listOrganizers` — Public endpoint returning all active organizers with follower/event counts
@@ -146,33 +143,6 @@ Admin-only operations: organizer account management, password reset processing, 
 - `deleteEventAdmin` — Force-delete any event (cascades tickets)
 
 **Uses:** `models/User.js`, `models/Organizer.js`, `models/Event.js`, `models/Ticket.js`, `models/PasswordResetRequest.js`
-
-#### `teamController.js`
-Hackathon team lifecycle: creation, joining, invitations, completion.
-
-- `createTeam` — Creates team with auto-generated 8-char invite code, leader auto-joined, creates empty TeamChat room
-- `joinTeam` — Join via invite code, validates team capacity and event eligibility
-- `inviteMember` — Sends email invitation with invite code to specified email address
-- `respondToInvite` — Accept or decline a pending team invitation
-- `completeTeamRegistration` — Leader-only action; validates min team size; generates tickets + QR codes for all accepted members; sends confirmation emails
-- `getTeam` — Team details with member info
-- `getMyTeams` — All teams the authenticated user belongs to
-- `leaveTeam` — Removes member; if leader leaves, oldest member becomes new leader; last member deletion cancels team
-
-**Uses:** `models/Team.js`, `models/TeamChat.js`, `models/Event.js`, `models/Ticket.js`, `models/User.js`, `utils/ticket.js`, `utils/email.js`
-
-#### `teamChatController.js`
-Polling-based real-time messaging for hackathon teams.
-
-- `getChatMessages` — Paginated message history, auto-marks as read
-- `sendMessage` — Appends message to chat document, updates last activity timestamp
-- `editMessage / deleteMessage` — Modify own messages only
-- `markAsRead` — Marks all messages as read for the requesting user
-- `getUnreadCount` — Count of messages not yet read by user
-- `updateTypingStatus / getTypingUsers` — Typing indicator management
-- `updateOnlineStatus / getOnlineUsers` — Presence tracking
-
-**Uses:** `models/TeamChat.js`, `models/Team.js`
 
 #### `attendanceController.js`
 QR-based and manual check-in system with audit trail.
@@ -237,28 +207,14 @@ Event document supporting three types plus dynamic form builder.
 **Indexes:** Text index on `name`, `description`, `tags` for full-text search.
 
 #### `Ticket.js`
-Registration/purchase records with QR codes.
+Registration/purchase records with QR codes and payment approval workflow.
 
-**Key Fields:** `ticketId` (unique, format `FEL-<base36timestamp>-<random>`), `eventId`, `userId`, `teamId` (optional), `formResponses` (Map — stores custom form answers), `variant` (size/color for merchandise), `quantity`, `paymentStatus`, `status` (confirmed/pending/cancelled/rejected), `attended` (boolean), `attendanceTimestamp`, `qrCode` (base64 data URL), `amount`
+**Key Fields:** `ticketId` (unique, format `FEL-<base36timestamp>-<random>`), `eventId`, `userId`, `teamId` (optional), `formResponses` (Map — stores custom form answers), `variant` (size/color for merchandise), `quantity`, `paymentStatus` (pending/approved/rejected/not-required), `paymentProofUrl` (Cloudinary image URL for payment screenshot), `status` (confirmed/pending/cancelled/rejected), `attended` (boolean), `attendanceTimestamp`, `qrCode` (base64 data URL), `amount`
 
 #### `Organizer.js`
 Club/organization profile linked to a User account.
 
 **Key Fields:** `name`, `category` (cultural/technical/sports/other), `description`, `contactEmail`, `contactNumber`, `logo`, `discordWebhook`, `userId` (ref User), `isActive` (for soft-delete), `followers[]` (ref User)
-
-#### `Team.js`
-Hackathon team with invite-based member management.
-
-**Key Fields:** `name`, `eventId`, `leaderId`, `members[]` (embedded: `userId`, `status` pending/accepted/rejected, `joinedAt`), `inviteCode` (unique 8-char alphanumeric), `maxSize`, `minSize`, `status` (forming/complete/incomplete/cancelled), `isRegistrationComplete`
-
-**Static Method:** `generateInviteCode()` — Creates unique 8-character code with collision check.
-
-#### `TeamChat.js`
-Chat room per team with embedded messages.
-
-**Key Fields:** `team` (ref, unique — one chat per team), `messages[]` (embedded: `sender`, `content`, `messageType` text/link/file, `fileUrl/fileName/fileSize`, `isEdited`, `readBy[]`), `lastActivity`, `typingUsers[]`, `onlineUsers[]`
-
-**Instance Methods:** `addMessage()`, `markAsRead()`, `getUnreadCount(userId)`
 
 #### `Attendance.js`
 Check-in records with audit trail (two models in one file).
@@ -320,6 +276,9 @@ Each route file defines Express Router endpoints and applies appropriate middlew
 | GET | `/me/events/:id/analytics` | protect, organizer | `getEventAnalytics` |
 | GET | `/me/analytics` | protect, organizer | `getOrganizerAnalytics` |
 | POST | `/me/request-password-reset` | protect, organizer | `requestPasswordReset` |
+| GET | `/me/events/:id/merchandise-orders` | protect, organizer | `getMerchandiseOrders` |
+| PUT | `/me/events/:id/merchandise-orders/:ticketId/approve` | protect, organizer | `approveMerchandiseOrder` |
+| PUT | `/me/events/:id/merchandise-orders/:ticketId/reject` | protect, organizer | `rejectMerchandiseOrder` |
 | GET | `/` | optionalAuth | `listOrganizers` |
 | GET | `/:id` | — | `getOrganizerById` |
 | POST | `/:id/follow` | protect, participant | `toggleFollowOrganizer` |
@@ -341,33 +300,6 @@ Each route file defines Express Router endpoints and applies appropriate middlew
 | GET | `/password-requests` | protect, admin | `getPasswordResetRequests` |
 | PUT | `/password-requests/:id` | protect, admin | `processPasswordResetRequest` |
 
-#### `teams.js`
-| Method | Endpoint | Middleware | Handler |
-|--------|----------|------------|---------|
-| POST | `/` | protect, participant | `createTeam` |
-| GET | `/my-teams` | protect, participant | `getMyTeams` |
-| GET | `/invite/:inviteCode` | protect, participant | `getTeamByInviteCode` |
-| POST | `/join/:inviteCode` | protect, participant | `joinTeam` |
-| GET | `/:teamId` | protect, participant | `getTeam` |
-| POST | `/:teamId/invite` | protect, participant | `inviteMember` |
-| POST | `/:teamId/respond-invite` | protect, participant | `respondToInvite` |
-| POST | `/:teamId/complete-registration` | protect, participant | `completeTeamRegistration` |
-| DELETE | `/:teamId/leave` | protect, participant | `leaveTeam` |
-
-#### `teamChat.js`
-| Method | Endpoint | Middleware | Handler |
-|--------|----------|------------|---------|
-| GET | `/:teamId/messages` | protect, participant | `getChatMessages` |
-| POST | `/:teamId/messages` | protect, participant | `sendMessage` |
-| PUT | `/:teamId/messages/:messageId` | protect, participant | `editMessage` |
-| DELETE | `/:teamId/messages/:messageId` | protect, participant | `deleteMessage` |
-| POST | `/:teamId/mark-read` | protect, participant | `markAsRead` |
-| GET | `/:teamId/unread-count` | protect, participant | `getUnreadCount` |
-| POST | `/:teamId/typing` | protect, participant | `updateTypingStatus` |
-| POST | `/:teamId/online` | protect, participant | `updateOnlineStatus` |
-| GET | `/:teamId/online-users` | protect, participant | `getOnlineUsers` |
-| GET | `/:teamId/typing-users` | protect, participant | `getTypingUsers` |
-
 #### `attendance.js`
 | Method | Endpoint | Middleware | Handler |
 |--------|----------|------------|---------|
@@ -386,15 +318,15 @@ Barrel export for all route modules — imported by `server.js`.
 ### `utils/`
 
 #### `email.js`
-Configures Nodemailer SMTP transporter using `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`. Exports `sendEmail(to, subject, html)` for generic emails and `sendTicketEmail(to, ticket, event)` for formatted ticket confirmations with embedded QR code image.
+Uses lazy transporter initialization (created on first use, not at import time) to avoid `ECONNREFUSED` errors caused by ES module import hoisting running before `dotenv.config()`. Exports `sendEmail(to, subject, html)` for generic emails and `sendTicketEmail(to, ticket, event)` for formatted ticket confirmations with embedded QR code image.
 
-**Used by:** `eventController.js`, `teamController.js`
+**Used by:** `eventController.js`, `organizerController.js`
 
 #### `ticket.js`
 - `generateTicketId()` — Creates IDs in format `FEL-<base36-timestamp>-<random-chars>` for human readability
 - `generateQRCode(data)` — Generates QR code as base64 data URL using `qrcode` library; encodes JSON payload containing `ticketId`, `eventId`, `userId`, and generation timestamp
 
-**Used by:** `eventController.js`, `teamController.js`
+**Used by:** `eventController.js`, `organizerController.js`
 
 #### `discord.js`
 `postToDiscord(webhookUrl, event)` — Sends a rich embed to a Discord channel via webhook. Includes event name, type, date range, venue, registration deadline, and fee. Non-blocking: errors are logged but not thrown to avoid disrupting the publish flow.

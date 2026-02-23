@@ -18,11 +18,11 @@ A centralized platform for IIIT Hyderabad's annual fest **Felicity** that replac
 ```
 ├── backend/                 # Express REST API server
 │   ├── config/              # Database connection
-│   ├── controllers/         # Route handler logic (7 controllers)
+│   ├── controllers/         # Route handler logic (6 controllers)
 │   ├── middleware/          # Auth guards, error handling
-│   ├── models/              # Mongoose schemas (8 models)
-│   ├── routes/              # API endpoint definitions (7 route files)
-│   ├── utils/               # Email, QR, Discord, CAPTCHA helpers
+│   ├── models/              # Mongoose schemas (6 models)
+│   ├── routes/              # API endpoint definitions (5 route files)
+│   ├── utils/               # Email (lazy init), QR, Discord, CAPTCHA helpers
 │   ├── scripts/             # Admin seed script
 │   └── server.js            # Application entry point
 │
@@ -31,8 +31,8 @@ A centralized platform for IIIT Hyderabad's annual fest **Felicity** that replac
 │       ├── api/             # Axios instance with auth interceptor
 │       ├── components/      # Navbar, ProtectedRoute, CAPTCHA
 │       ├── context/         # AuthContext, ThemeContext
-│       ├── pages/           # 17 page components (auth/events/participant/organizer/admin)
-│       └── services/        # API service abstractions (7 service files)
+│       ├── pages/           # 15 page components (auth/events/participant/organizer/admin)
+│       └── services/        # API service abstractions (5 service files)
 │
 ├── deployment.txt           # Production URLs
 └── README.md                # This file
@@ -44,58 +44,58 @@ A centralized platform for IIIT Hyderabad's annual fest **Felicity** that replac
 
 ## Core Features Implemented (Part 1)
 
-### Authentication & Security [8 Marks]
+### Authentication & Security
 - **Registration:** IIIT participants must use `@*.iiit.ac.in` emails (domain validated server-side). Non-IIIT participants register with any email. Organizer accounts are admin-provisioned only.
 - **Password Security:** All passwords hashed with bcrypt (10 salt rounds) via a Mongoose pre-save hook. No plaintext storage.
 - **JWT Authentication:** All protected routes require a valid JWT (30-day expiry) in the `Authorization` header. Token stored in localStorage for session persistence across browser restarts.
 - **Role-Based Access Control:** Three roles (participant, organizer, admin) with middleware-enforced authorization on every protected endpoint. Frontend uses `<ProtectedRoute>` to gate pages by role.
 - **Session Management:** Login redirects to role-appropriate dashboard. Sessions persist via localStorage until explicit logout, which clears all tokens.
 
-### User Onboarding & Preferences [3 Marks]
+### User Onboarding & Preferences
 - Two-step post-registration wizard: (1) select areas of interest from 24 categories, (2) follow organizers
 - Preferences stored in the User model and influence event browse ordering (preference-matched events surfaced first via scoring in the query pipeline)
 - Skip option available; preferences editable from the Profile page at any time
 
-### User Data Models [2 Marks]
+### User Data Models
 - **Participant:** firstName, lastName, email (unique), participantType (iiit/non-iiit), collegeOrg, contactNumber, password (hashed), areasOfInterest[], followedOrganizers[]
 - **Organizer:** name, category (cultural/technical/sports/other), description, contactEmail, contactNumber, discordWebhook, logo, followers[], isActive
 
-### Event Types [2 Marks]
+### Event Types
 - **Normal Event:** Individual registration with optional custom form. Workshops, talks, competitions.
-- **Merchandise Event:** Item purchase with variant support (size, color, stock). Stock decremented atomically on purchase. Configurable per-participant purchase limit.
-- **Hackathon Event:** Team-based registration (see Tier A advanced feature). Supports individual, team, or both registration types.
+- **Merchandise Event:** Item purchase with variant support (size, color, stock). Payment proof upload required; orders enter "pending" state for organizer approval. Stock decremented only on approval. Configurable per-participant purchase limit.
+- **Hackathon Event:** Team-based registration support (individual, team, or both registration types).
 
-### Event Attributes [2 Marks]
+### Event Attributes
 Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-only), registrationDeadline, startDate, endDate, registrationLimit, registrationFee, organizerId, tags[], status (draft/published/ongoing/completed/closed).
 - **Normal Events:** Dynamic custom registration form via form builder (9 field types, required/optional toggle, reorderable). Form locks after first registration.
 - **Merchandise Events:** variants[] (size, color, stock, price), purchaseLimitPerUser.
 - **Hackathon Events:** allowTeamRegistration, minTeamSize, maxTeamSize, registrationType.
 
-### Participant Features [22 Marks]
+### Participant Features
 
 | Feature | Implementation |
 |---------|---------------|
 | **Navigation** | Role-aware Navbar with Dashboard, Browse Events, Clubs/Organizers, Profile, Logout. Mobile-responsive hamburger menu. |
 | **Dashboard** | Upcoming events section. Tabbed participation history (Normal, Merchandise, Completed, Cancelled). Each record shows event name, type, organizer, status, team, clickable ticket ID. Ticket modal with QR code. |
 | **Browse Events** | Trending section (top 5 by 24h registrations via aggregation pipeline). Text search (MongoDB `$text` index). Filters: event type, eligibility, date range, followed clubs only. Paginated grid. |
-| **Event Details** | Full event info with registration/purchase buttons. Dynamic custom form modal for normal events. Variant/quantity picker for merchandise. Team registration link for hackathons. Deadline/capacity/stock blocking. |
-| **Registration** | Normal: form submission → ticket with QR generated → confirmation email sent. Merchandise: variant selected → stock decremented → ticket + QR → email. Ticket format: `FEL-<timestamp>-<random>`. |
+| **Event Details** | Full event info with registration/purchase buttons. Dynamic custom form modal for normal events. Variant picker + payment proof upload for merchandise (shows order status: pending/approved/rejected). Deadline/capacity/stock blocking. |
+| **Registration** | Normal: form submission → ticket with QR generated → confirmation email sent. Merchandise: variant selected + payment proof uploaded → order pending → organizer approves → stock decremented + QR + email. Ticket format: `FEL-<timestamp>-<random>`. |
 | **Profile** | Editable: name, contact, college, interests, followed clubs. Non-editable: email, participant type. Password change with current password verification. |
 | **Organizer Listing** | All active organizers with search, follow/unfollow toggle, follower and event counts. |
 | **Organizer Detail** | Profile info, follow button, upcoming events grid, past events grid. |
 
-### Organizer Features [18 Marks]
+### Organizer Features
 
 | Feature | Implementation |
 |---------|---------------|
 | **Navigation** | Dashboard, Create Event, Ongoing Events, Profile, Logout. |
 | **Dashboard** | Event cards with status tabs (All/Draft/Published/Ongoing/Completed/Closed). Analytics: total events, registrations, revenue, attendance rate. |
-| **Event Detail** | Overview with analytics cards. Participant table with search/filter by status, check-in, institution type. CSV export. Status management actions. |
+| **Event Detail** | Overview with analytics cards. Participant table with search/filter by status, check-in, institution type. CSV export. Status management actions. Merchandise events get a dedicated "Merchandise Orders" tab with approve/reject workflow, payment proof preview, and order status summary. |
 | **Event Creation** | 4-step wizard: (1) Basic info, (2) Configuration (eligibility, tags, team/merch settings), (3) Custom form builder (drag-to-reorder, 9 field types), (4) Review & save as draft. Edit mode respects status-dependent rules. |
 | **Profile** | Editable fields including Discord webhook URL for auto-posting events. Password reset request to admin. |
 | **Discord Webhook** | On event publish, auto-sends rich embed to configured Discord channel with event details, dates, and registration info. |
 
-### Admin Features [6 Marks]
+### Admin Features
 
 | Feature | Implementation |
 |---------|---------------|
@@ -103,7 +103,7 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 | **Dashboard** | Platform stats (participants, organizers, events, revenue). Recent events with delete. Pending password request preview. |
 | **Club Management** | Create organizer (auto-generates password, displays credentials with copy button). Edit, disable/enable, permanently delete (cascades to events/tickets). Search and status filter. |
 
-### Deployment [5 Marks]
+### Deployment
 - **Frontend:** Deployed to Vercel (static hosting)
 - **Backend:** Deployed to Render (managed Node.js hosting)
 - **Database:** MongoDB Atlas (connection via `MONGO_URI` environment variable)
@@ -111,22 +111,9 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 
 ---
 
-## Advanced Features Implemented (Part 2) — 30 Marks
+## Advanced Features Implemented
 
-### Feature Selection Summary
-
-| Tier | Feature | Marks |
-|------|---------|-------|
-| **A** | QR Scanner & Attendance Tracking | 8 |
-| **A** | Hackathon Team Registration | 8 |
-| **B** | Team Chat | 6 |
-| **B** | Organizer Password Reset Workflow | 6 |
-| **C** | Bot Protection (hCaptcha) | 2 |
-| | **Total** | **30** |
-
----
-
-### Tier A — Feature 1: QR Scanner & Attendance Tracking [8 Marks]
+### Tier A — Feature 1: QR Scanner & Attendance Tracking
 
 **Why this feature:** Attendance tracking is the most critical operational need during a fest. Without it, organizers cannot verify who actually attended vs who merely registered, making post-event analysis and resource planning impossible. The QR-based approach eliminates manual roll calls and provides real-time visibility.
 
@@ -176,96 +163,80 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 
 ---
 
-### Tier A — Feature 2: Hackathon Team Registration [8 Marks]
+### Tier A — Feature 2: Merchandise Payment Approval Workflow
 
-**Why this feature:** Hackathons are a cornerstone of Felicity, and team formation is inherently complex — leaders need to find members, members need to coordinate, and the system must ensure complete teams before generating tickets. This feature automates the entire lifecycle.
+**Why this feature:** Merchandise sales during a fest involve real money — teams selling t-shirts, hoodies, and accessories need to verify payments before committing stock. An auto-approve system would result in unpaid orders depleting inventory. This workflow gives organizers full control: participants upload payment proof, organizers verify and approve/reject, and stock is only decremented on approval.
 
 **Key Files:**
-- `backend/models/Team.js` — Team schema with invite code generation, member status tracking
-- `backend/controllers/teamController.js` — Create, join, invite, respond, complete registration, leave
-- `backend/routes/teams.js` — 9 participant-protected endpoints
-- `frontend/src/pages/participant/TeamRegistration.jsx` — Create/join/manage team UI
-- `frontend/src/services/teamService.js` — API abstraction layer
+- `backend/controllers/eventController.js` — `purchaseMerchandise` (creates pending order with payment proof)
+- `backend/controllers/organizerController.js` — `getMerchandiseOrders`, `approveMerchandiseOrder`, `rejectMerchandiseOrder`
+- `backend/routes/organizers.js` — 3 organizer-protected merchandise order endpoints
+- `backend/models/Ticket.js` — `paymentStatus` (pending/approved/rejected/not-required), `paymentProofUrl`, `status` fields
+- `frontend/src/pages/events/EventDetails.jsx` — Payment proof upload UI, order status display
+- `frontend/src/pages/organizer/OrganizerEventDetail.jsx` — Merchandise Orders tab with approve/reject actions
+- `frontend/src/services/organizerService.js` — Merchandise order API methods
 
 **Implementation Details:**
 
-1. **Team Creation**
-   - Leader creates team with a name, linked to a specific hackathon event
-   - System auto-generates a unique 8-character alphanumeric invite code (collision-checked via static method on Team model)
-   - TeamChat room automatically created for the team (enables Tier B Team Chat feature)
-   - Leader is auto-added as first member with status "accepted"
+1. **Participant Purchase Flow**
+   - Participant selects a variant (size/color) and uploads a payment screenshot (UPI, bank transfer, etc.)
+   - Image uploaded to Cloudinary; `paymentProofUrl` stored with the ticket
+   - Ticket created with `status: "pending"` and `paymentStatus: "pending"` — no QR generated, no stock decremented
+   - Participant sees "Order Pending Approval" badge on the event page
 
-2. **Joining & Invitations**
-   - **Invite Code:** Shareable offline — paste code in the "Join Team" tab to join instantly
-   - **Email Invitation:** Leader enters email → system sends invite email with the code via Nodemailer
-   - **Join Validation:** Checks team capacity (maxSize), event eligibility, and prevents duplicate membership
+2. **Organizer Review Dashboard**
+   - New "Merchandise Orders" tab in the organizer event detail page (only for merchandise events)
+   - Summary cards showing counts: Pending, Approved, Rejected, Cancelled
+   - Filterable order table with buyer info, variant, amount, payment proof thumbnail, status, and date
+   - Each row has Approve/Reject action buttons (only for pending orders)
 
-3. **Member Status Tracking**
-   - Each member has a status: `pending` (invited but not responded), `accepted`, `rejected`
-   - Team status: `forming` (accepting members), `complete` (all slots filled), `incomplete` (below min size)
-   - Real-time member list in the Manage Team tab shows each member's status
+3. **Approval Flow**
+   - Organizer clicks "Approve" → backend validates order is still pending
+   - Stock decremented atomically for the selected variant (with insufficient stock check)
+   - QR code generated with ticket data, `status` set to "confirmed", `paymentStatus` set to "approved"
+   - Confirmation email sent to participant with ticket details and QR code
+   - Revenue updated on the event
 
-4. **Complete Team Registration**
-   - Leader-only action — validates minimum team size is met (all accepted members ≥ minTeamSize)
-   - On completion: generates individual tickets with QR codes for ALL accepted team members
-   - Confirmation emails sent to every team member with their personal ticket
-   - Team status set to `complete`, `isRegistrationComplete` flag set
+4. **Rejection Flow**
+   - Organizer clicks "Reject" → `status` set to "rejected", `paymentStatus` set to "rejected"
+   - `registrationCount` decremented on the event
+   - Participant sees "Rejected" badge and message to contact organizer
 
-5. **Leave Team with Leader Succession**
-   - Any member can leave a team before registration is complete
-   - If the leader leaves, the oldest remaining member (by joinedAt timestamp) automatically becomes the new leader
-   - If the last member leaves, team status is set to `cancelled`
+5. **Stock Management**
+   - Stock is NOT decremented at purchase time — only on organizer approval
+   - Prevents stock depletion from unverified/fraudulent orders
+   - If stock becomes insufficient between order and approval, the approve action fails with a clear error
 
 **Design Decisions:**
-- Invite codes (8 chars) over invitation links — simpler for in-person sharing during fest, works offline, no URL parsing needed
-- Auto-creating TeamChat on team creation ensures the chat room is ready before members even join
-- Leader succession prevents orphaned teams requiring admin intervention
+- Payment proof as image upload (Cloudinary) rather than integrated payment gateway — most fest clubs use UPI/bank transfers, not card payments. Image proof is the standard verification method.
+- Stock decrement deferred to approval — prevents race conditions where unpaid orders lock up inventory
+- No auto-expiry on pending orders — organizers manually manage their queue, which matches the small-scale nature of fest merchandise
 
 ---
 
-### Tier B — Feature 1: Team Chat [6 Marks]
+### Tier B — Feature 1: Email System with Lazy Transporter Initialization
 
-**Why this feature:** Team coordination is essential for hackathons, and forcing teams to use external platforms (WhatsApp, Discord) fractures the user experience. An integrated chat keeps all team communication within the platform alongside registration status, member list, and event details.
+**Why this feature:** The email system is critical for sending ticket confirmations with QR codes. A subtle bug caused `ECONNREFUSED 127.0.0.1:587` errors: ES module imports are hoisted, so `email.js` was creating the SMTP transporter at import time — before `dotenv.config()` in `server.js` had run. This meant `process.env.SMTP_HOST` was `undefined`, and Nodemailer defaulted to `localhost:587`.
 
 **Key Files:**
-- `backend/models/TeamChat.js` — Chat room with embedded messages, typing/online tracking
-- `backend/controllers/teamChatController.js` — Message CRUD, read receipts, presence management
-- `backend/routes/teamChat.js` — 10 participant-protected endpoints
-- `frontend/src/pages/participant/TeamChat.jsx` — Chat UI with message bubbles, typing indicators
-- `frontend/src/services/teamChatService.js` — API abstraction layer
+- `backend/utils/email.js` — Lazy transporter initialization, `sendEmail`, `sendTicketEmail`
 
 **Implementation Details:**
 
-1. **Real-Time Messaging (3-second polling)**
-   - Frontend polls `GET /messages` every 3 seconds for new messages
-   - Messages stored as embedded subdocuments in the TeamChat document (single-document reads are fast)
-   - Paginated history loaded on scroll-up
+1. **Lazy Initialization Pattern**
+   - Transporter is NOT created at module load time
+   - A `getTransporter()` function creates and caches the transporter on first use
+   - By the time any email function is called, `dotenv.config()` has already run in `server.js`
+   - Subsequent calls reuse the cached transporter instance
 
-2. **Online Status & Typing Indicators**
-   - Users send heartbeat to `POST /online` endpoint; backend tracks `onlineUsers[]` with timestamps
-   - Typing status via `POST /typing` endpoint; frontend shows "X is typing..." indicator
-   - Both implemented without WebSockets using short-poll endpoints
-
-3. **Message Features**
-   - Edit own messages (sets `isEdited` flag, shows "edited" label)
-   - Delete own messages (removes from array)
-   - Support for text, link, and file message types
-   - Message bubbles styled by sender (own = right-aligned blue, others = left-aligned)
-   - User avatars with colored initials
-
-4. **Read Receipts & Unread Count**
-   - `markAsRead()` method adds userId to each message's `readBy[]` array
-   - `getUnreadCount(userId)` counts messages where userId is not in readBy
-   - Unread count displayed in team navigation
-
-**Design Decisions:**
-- **Polling over WebSockets:** Eliminates the need for a WebSocket server (additional infrastructure, sticky sessions, reconnection logic). For a team of 2-6 people, 3-second polling is indistinguishable from real-time. Simpler deployment on Render (no WebSocket support needed).
-- **Embedded messages in single document:** Teams are small (2-6 members, ~100s of messages during a hackathon). Single-document storage avoids joins and simplifies read/write. If messages grew to thousands, a separate collection with pagination would be warranted.
-- **3-second interval:** Empirically chosen — 1s feels wasteful for a team chat, 5s feels sluggish. 3s balances responsiveness with server load.
+2. **Email Functions**
+   - `sendEmail({ to, subject, html })` — Generic email sender for any purpose
+   - `sendTicketEmail(user, event, ticket)` — Sends formatted ticket confirmation with QR code image
+   - Both use `getTransporter()` instead of a module-level `transporter` constant
 
 ---
 
-### Tier B — Feature 2: Organizer Password Reset Workflow [6 Marks]
+### Tier B — Feature 2: Organizer Password Reset Workflow
 
 **Why this feature:** Organizer accounts handle sensitive event data (participant info, payments, attendance). Self-service password resets would be a security risk. An admin-mediated workflow ensures accountability while providing a structured process for organizers who lose access.
 
@@ -313,7 +284,7 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 
 ---
 
-### Tier C — Bot Protection (hCaptcha) [2 Marks]
+### Tier C — Bot Protection (hCaptcha)
 
 **Why this feature:** Registration and login endpoints are the primary attack surface for automated bots. Without CAPTCHA, bots could mass-register fake accounts, brute-force passwords, or create spam registrations for events. hCaptcha was chosen over Google reCAPTCHA for better privacy practices and no Google dependency.
 
@@ -481,26 +452,4 @@ cd frontend && npm run dev   # Frontend on http://localhost:5173
 
 Environment variables are configured in each platform's dashboard (not committed to source).
 
----
 
-## Marks Breakdown
-
-| Section | Feature | Marks |
-|---------|---------|-------|
-| **Part 1** | Authentication & Security | 8 |
-| | User Onboarding & Preferences | 3 |
-| | User Data Models | 2 |
-| | Event Types | 2 |
-| | Event Attributes | 2 |
-| | Participant Features & Navigation | 22 |
-| | Organizer Features & Navigation | 18 |
-| | Admin Features & Navigation | 6 |
-| | Deployment | 5 |
-| | **Subtotal** | **68** |
-| **Part 2 — Tier A** | QR Scanner & Attendance Tracking | 8 |
-| | Hackathon Team Registration | 8 |
-| **Part 2 — Tier B** | Team Chat | 6 |
-| | Organizer Password Reset Workflow | 6 |
-| **Part 2 — Tier C** | Bot Protection (hCaptcha) | 2 |
-| | **Subtotal** | **30** |
-| | **Total** | **98** |

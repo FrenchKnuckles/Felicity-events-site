@@ -10,7 +10,6 @@ import {
   OrganizerDashboard, EventForm, EventParticipants, AttendanceDashboard,
   OrganizerProfile, OngoingEvents, OrganizerEventDetail,
   AdminDashboard, ManageOrganizers, OrganizerForm, PasswordRequests,
-  TeamRegistration, TeamChat,
 } from "./pages";
 import "./App.css";
 
@@ -36,8 +35,7 @@ function AppContent() {
           <Route path="/onboarding" element={<P roles={["participant"]}><Onboarding /></P>} />
           <Route path="/dashboard" element={<P roles={["participant"]}><ParticipantDashboard /></P>} />
           <Route path="/profile" element={<P roles={["participant"]}><Profile /></P>} />
-          <Route path="/events/:eventId/team" element={<P roles={["participant"]}><TeamRegistration /></P>} />
-          <Route path="/team-chat/:teamId" element={<P roles={["participant"]}><TeamChat /></P>} />
+
           <Route path="/organizer/dashboard" element={<P roles={["organizer"]}><OrganizerDashboard /></P>} />
           <Route path="/organizer/profile" element={<P roles={["organizer"]}><OrganizerProfile /></P>} />
           <Route path="/organizer/ongoing" element={<P roles={["organizer"]}><OngoingEvents /></P>} />

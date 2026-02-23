@@ -8,6 +8,8 @@ import { CheckIcon, ArrowRightIcon, StarIcon } from "@radix-ui/react-icons";
 
 const AREAS = ["Competitive Programming", "Web Development", "Mobile App Development", "Machine Learning & AI", "Data Science", "Cybersecurity", "Cloud Computing", "DevOps", "Blockchain", "IoT", "Robotics", "Game Development", "UI/UX Design", "Open Source", "Research & Academia", "Entrepreneurship", "Finance & Trading", "Music & Arts", "Photography", "Dance", "Literary Arts", "Sports & Fitness", "Social Events"];
 
+const StepDot = ({ n, step }) => <Flex align="center" justify="center" style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: step >= n ? "var(--blue-9)" : "var(--gray-4)", color: step >= n ? "white" : "var(--gray-11)" }}>{step > n ? <CheckIcon width={24} height={24} /> : n}</Flex>;
+
 const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [sel, setSel] = useState([]);
@@ -27,12 +29,10 @@ const Onboarding = () => {
     catch { toast.error("Failed to save preferences"); } finally { setLoading(false); }
   };
 
-  const StepDot = ({ n }) => <Flex align="center" justify="center" style={{ width: 40, height: 40, borderRadius: "50%", backgroundColor: step >= n ? "var(--blue-9)" : "var(--gray-4)", color: step >= n ? "white" : "var(--gray-11)" }}>{step > n ? <CheckIcon width={24} height={24} /> : n}</Flex>;
-
   return (
     <Box p="4" style={{ minHeight: "100vh", background: "linear-gradient(135deg, var(--blue-2), var(--purple-2))" }}>
       <Box style={{ maxWidth: 768, margin: "0 auto" }} py="6">
-        <Flex align="center" justify="center" mb="6"><Flex align="center" gap="2"><StepDot n={1} /><Box style={{ width: 96, height: 4, backgroundColor: step > 1 ? "var(--blue-9)" : "var(--gray-4)" }} /><StepDot n={2} /></Flex></Flex>
+        <Flex align="center" justify="center" mb="6"><Flex align="center" gap="2"><StepDot n={1} step={step} /><Box style={{ width: 96, height: 4, backgroundColor: step > 1 ? "var(--blue-9)" : "var(--gray-4)" }} /><StepDot n={2} step={step} /></Flex></Flex>
 
         <Card size="3">
           {step === 1 && <>

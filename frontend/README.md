@@ -35,10 +35,8 @@ frontend/
     │
     ├── services/
     │   ├── eventService.js       # Event API calls
-    │   ├── organizerService.js   # Organizer API calls
+    │   ├── organizerService.js   # Organizer API calls (incl. merchandise order management)
     │   ├── adminService.js       # Admin API calls
-    │   ├── teamService.js        # Team management API calls
-    │   ├── teamChatService.js    # Team chat API calls
     │   ├── attendanceService.js  # Attendance/check-in API calls
     │   └── index.js              # Barrel exports
     │
@@ -56,14 +54,12 @@ frontend/
     │   │   ├── Dashboard.jsx          # My events & tickets
     │   │   ├── Profile.jsx            # Edit profile & preferences
     │   │   ├── OrganizersListing.jsx  # Browse & follow organizers
-    │   │   ├── OrganizerDetail.jsx    # Single organizer view
-    │   │   ├── TeamRegistration.jsx   # Hackathon team management
-    │   │   └── TeamChat.jsx           # Team messaging interface
+    │   │   └── OrganizerDetail.jsx    # Single organizer view
     │   │
     │   ├── organizer/
     │   │   ├── Dashboard.jsx              # Event carousel & analytics
     │   │   ├── EventForm.jsx              # 4-step event creation wizard
-    │   │   ├── OrganizerEventDetail.jsx   # Event detail (organizer view)
+    │   │   ├── OrganizerEventDetail.jsx   # Event detail + merchandise orders tab
     │   │   ├── EventParticipants.jsx      # Participant list & CSV export
     │   │   ├── AttendanceDashboard.jsx    # QR scanner & check-in
     │   │   ├── OrganizerProfile.jsx       # Edit organizer profile
@@ -107,7 +103,7 @@ Router setup using `react-router-dom` `BrowserRouter`. Defines 24+ routes organi
 
 **Route Layout:**
 - Public: `/login`, `/register`, `/events`, `/events/:id`, `/organizers`, `/organizers/:id`
-- Participant: `/dashboard`, `/profile`, `/onboarding`, `/teams/*`, `/team-chat/:teamId`
+- Participant: `/dashboard`, `/profile`, `/onboarding`
 - Organizer: `/organizer/*` (dashboard, events, profile, attendance)
 - Admin: `/admin/*` (dashboard, manage organizers, password requests)
 
@@ -208,13 +204,13 @@ Service files abstract all API calls. Each function calls the Axios instance fro
 | `getTrending()` | GET | `/events/trending` | Top 5 events by 24h registrations |
 | `getEventById(id)` | GET | `/events/:id` | Full event details |
 | `register(id, formData)` | POST | `/events/:id/register` | Register for normal event (with custom form) |
-| `purchase(id, data)` | POST | `/events/:id/purchase` | Purchase merchandise |
+| `purchase(id, variantId, qty, paymentProofUrl)` | POST | `/events/:id/purchase` | Purchase merchandise (with payment proof) |
 | `getMyEvents()` | GET | `/events/user/my-events` | User's registered events/tickets |
 | `getTicket(ticketId)` | GET | `/events/tickets/:id` | Single ticket with QR |
 | `cancelRegistration(ticketId)` | PUT | `/events/tickets/:id/cancel` | Cancel a registration |
 | `getInterests()` | GET | `/events/interests` | Available interest categories |
 
-**Used by:** `BrowseEvents.jsx`, `EventDetails.jsx`, `participant/Dashboard.jsx`, `TeamRegistration.jsx`
+**Used by:** `BrowseEvents.jsx`, `EventDetails.jsx`, `participant/Dashboard.jsx`
 
 #### `organizerService.js`
 | Function | Method | Backend Endpoint | Purpose |
@@ -236,6 +232,9 @@ Service files abstract all API calls. Each function calls the Axios instance fro
 | `getEventAnalytics(id)` | GET | `/organizers/me/events/:id/analytics` | Event-specific stats |
 | `getAnalytics()` | GET | `/organizers/me/analytics` | Overall organizer stats |
 | `requestPasswordReset(data)` | POST | `/organizers/me/request-password-reset` | Request password reset |
+| `getMerchandiseOrders(id, params)` | GET | `/organizers/me/events/:id/merchandise-orders` | List merchandise orders |
+| `approveMerchandiseOrder(id, ticketId)` | PUT | `/organizers/me/events/:id/merchandise-orders/:ticketId/approve` | Approve pending order |
+| `rejectMerchandiseOrder(id, ticketId)` | PUT | `/organizers/me/events/:id/merchandise-orders/:ticketId/reject` | Reject pending order |
 
 **Used by:** `OrganizersListing.jsx`, `OrganizerDetail.jsx`, `organizer/Dashboard.jsx`, `EventForm.jsx`, `OrganizerEventDetail.jsx`, `EventParticipants.jsx`, `OrganizerProfile.jsx`, `OngoingEvents.jsx`, `Onboarding.jsx`, `participant/Profile.jsx`
 
@@ -258,37 +257,6 @@ Service files abstract all API calls. Each function calls the Axios instance fro
 | `handlePasswordRequest(id, data)` | PUT | `/admin/password-requests/:id` | Approve/reject request |
 
 **Used by:** `admin/Dashboard.jsx`, `ManageOrganizers.jsx`, `OrganizerForm.jsx`, `PasswordRequests.jsx`
-
-#### `teamService.js`
-| Function | Method | Backend Endpoint | Purpose |
-|----------|--------|------------------|---------|
-| `createTeam(data)` | POST | `/teams` | Create hackathon team |
-| `getMyTeams()` | GET | `/teams/my-teams` | User's teams |
-| `getTeam(teamId)` | GET | `/teams/:teamId` | Team details |
-| `getTeamByInvite(code)` | GET | `/teams/invite/:code` | Look up team by code |
-| `joinTeam(inviteCode)` | POST | `/teams/join/:code` | Join via invite code |
-| `inviteMember(teamId, data)` | POST | `/teams/:teamId/invite` | Email invite |
-| `respondToInvite(teamId, data)` | POST | `/teams/:teamId/respond-invite` | Accept/decline |
-| `completeRegistration(teamId)` | POST | `/teams/:teamId/complete-registration` | Finalize team |
-| `leaveTeam(teamId)` | DELETE | `/teams/:teamId/leave` | Leave team |
-
-**Used by:** `TeamRegistration.jsx`, `TeamChat.jsx`
-
-#### `teamChatService.js`
-| Function | Method | Backend Endpoint | Purpose |
-|----------|--------|------------------|---------|
-| `getMessages(teamId, params)` | GET | `/team-chat/:teamId/messages` | Paginated chat history |
-| `sendMessage(teamId, data)` | POST | `/team-chat/:teamId/messages` | Send message |
-| `editMessage(teamId, msgId, data)` | PUT | `/team-chat/:teamId/messages/:id` | Edit own message |
-| `deleteMessage(teamId, msgId)` | DELETE | `/team-chat/:teamId/messages/:id` | Delete own message |
-| `markAsRead(teamId)` | POST | `/team-chat/:teamId/mark-read` | Mark all read |
-| `getUnreadCount(teamId)` | GET | `/team-chat/:teamId/unread-count` | Unread message count |
-| `updateTyping(teamId, data)` | POST | `/team-chat/:teamId/typing` | Set typing status |
-| `updateOnline(teamId, data)` | POST | `/team-chat/:teamId/online` | Set online status |
-| `getOnlineUsers(teamId)` | GET | `/team-chat/:teamId/online-users` | Who's online |
-| `getTypingUsers(teamId)` | GET | `/team-chat/:teamId/typing-users` | Who's typing |
-
-**Used by:** `TeamChat.jsx`
 
 #### `attendanceService.js`
 | Function | Method | Backend Endpoint | Purpose |
@@ -357,17 +325,15 @@ Main event discovery page with search, filters, and trending section.
 **Connects to:** `services/eventService.js` (getEvents, getTrending), navigates to `EventDetails.jsx` on card click
 
 #### `EventDetails.jsx`
-Full event information page with registration/purchase actions.
+Full event information page with registration/purchase actions. `FormField` component is defined outside the main component to prevent focus loss on re-render.
 
 - **Info Display:** Name, description, type indicator, organizer, dates, venue, eligibility, fee, registration count/limit
-- **Registration (Normal):** Modal with custom form fields rendered dynamically (text, dropdown, checkbox, radio, file, etc.)
-- **Purchase (Merchandise):** Variant selector (size/color), quantity picker, stock indicator
-- **Team Registration:** Link to team management page for hackathon events
+- **Registration (Normal):** Custom form fields rendered dynamically (text, dropdown, checkbox, radio, file, etc.)
+- **Purchase (Merchandise):** Variant selector (size/color), payment proof upload to Cloudinary, order submission. Shows order status (pending/approved/rejected) with QR code on approval.
 - **Ticket View:** If already registered, displays ticket with QR code
 - **Blocking:** Disables actions when deadline passed, limit reached, or stock exhausted
-- **Cancel:** Cancel registration button for confirmed tickets
 
-**Connects to:** `services/eventService.js` (getEventById, register, purchase, cancelRegistration), navigates to `TeamRegistration.jsx` for team events
+**Connects to:** `services/eventService.js` (getEventById, register, purchase), Cloudinary API (payment proof upload)
 
 ---
 
@@ -378,7 +344,7 @@ Participant home page showing registered events and tickets.
 
 - **Upcoming Events:** Cards for events not yet started
 - **Participation History:** Tabbed view — Normal, Merchandise, Completed, Cancelled/Rejected
-- **Ticket Records:** Event name, type, organizer, status badge, team name (if applicable), clickable ticket ID
+- **Ticket Records:** Event name, type, organizer, status badge, clickable ticket ID
 - **Ticket Detail Modal:** Full ticket info with QR code display, event details
 - **Cancel Action:** Cancel registration directly from dashboard
 
@@ -418,30 +384,6 @@ Single organizer profile page (participant view).
 
 **Connects to:** `services/organizerService.js` (getById, toggleFollow), navigates to `EventDetails.jsx`
 
-#### `TeamRegistration.jsx`
-Hackathon team management interface with three operation modes.
-
-- **Create Team Tab:** Team name input, auto-generates invite code on creation
-- **Join Team Tab:** Enter invite code to join an existing team
-- **Manage Team Tab:** View team members with status (accepted/pending), copy invite code, invite by email, complete team registration (leader only), leave team
-- **Registration Flow:** Leader creates → members join via code → leader completes registration → tickets generated for all members
-
-**Connects to:** `services/teamService.js` (all team operations), `services/eventService.js` (getEventById for event context), navigates to `TeamChat.jsx`
-
-#### `TeamChat.jsx`
-Real-time messaging interface for hackathon teams.
-
-- **Message Bubbles:** Own messages on right (blue), others on left, with sender name and timestamp
-- **Auto-scroll:** Scrolls to newest message on load and when new messages arrive
-- **3-second Polling:** Fetches new messages every 3 seconds for real-time feel
-- **Typing Indicators:** Shows who is currently typing
-- **Online Users:** Sidebar/header showing which team members are online
-- **Message Actions:** Edit and delete own messages (context menu)
-- **Link Sharing:** Dialog to share URLs within the team chat
-- **User Avatars:** Circle with user initials, color-coded
-
-**Connects to:** `services/teamChatService.js` (all chat operations), `services/teamService.js` (getTeam for member info)
-
 ---
 
 ### `src/pages/organizer/`
@@ -472,12 +414,13 @@ Four-step event creation and editing wizard.
 Event detail page from the organizer's perspective.
 
 - **Overview:** Event name, type, status (with color-coded badge), dates, eligibility, pricing, venue
-- **Analytics Cards:** Total registrations, revenue, attendance rate, team completion (for hackathons)
-- **Participant Table:** Name, email, registration date, payment status, team name, attendance mark — with search and filters (status, check-in status, institution type)
+- **Analytics Cards:** Total registrations, revenue, attendance rate
+- **Participant Table:** Name, email, registration date, payment status, attendance mark — with search and filters (status, check-in status, institution type)
+- **Merchandise Orders Tab (merchandise events only):** Summary cards (pending/approved/rejected/cancelled counts), filterable order table with buyer info, variant, amount, payment proof thumbnail, order status, and approve/reject action buttons for pending orders
 - **CSV Export:** Download participant data
 - **Actions:** Edit event (→ EventForm), publish draft, change status (close/complete), view attendance dashboard
 
-**Connects to:** `services/organizerService.js` (getEventDetails, getEventAnalytics, getParticipants, publishEvent, updateEvent, exportCSV), navigates to `EventForm.jsx`, `AttendanceDashboard.jsx`, `EventParticipants.jsx`
+**Connects to:** `services/organizerService.js` (getEventDetails, getEventAnalytics, getParticipants, publishEvent, updateEvent, exportCSV, getMerchandiseOrders, approveMerchandiseOrder, rejectMerchandiseOrder), navigates to `EventForm.jsx`, `AttendanceDashboard.jsx`, `EventParticipants.jsx`
 
 #### `EventParticipants.jsx`
 Dedicated participant list view for an event.
