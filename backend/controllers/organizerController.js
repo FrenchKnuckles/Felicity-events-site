@@ -98,10 +98,12 @@ export const updateEvent = wrap(async (req, res) => {
     if (event.formLocked && req.body.customForm) return res.status(400).json({ message: "Custom form cannot be edited after first registration" });
     Object.assign(event, req.body);
   } else if (event.status === "published") {
-    const { description, registrationDeadline, registrationLimit, status } = req.body;
+    const { description, registrationDeadline, registrationLimit, status, tags } = req.body;
     if (description) event.description = description;
     if (registrationDeadline && new Date(registrationDeadline) > event.registrationDeadline) event.registrationDeadline = registrationDeadline;
     if (registrationLimit && registrationLimit > event.registrationLimit) event.registrationLimit = registrationLimit;
+    // allow tag updates even when already published
+    if (tags && Array.isArray(tags)) event.tags = tags;
     if (status === "closed" || status === "ongoing") event.status = status;
   } else if (event.status === "ongoing" || event.status === "completed") {
     const { status } = req.body;

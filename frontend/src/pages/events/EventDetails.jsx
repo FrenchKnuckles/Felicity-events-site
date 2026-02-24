@@ -295,9 +295,9 @@ const EventDetails = () => {
                         style={{ fontSize: 13 }}
                       />
                       {uploading && <Flex align="center" gap="2" mt="1"><Spinner size="1" /><Text size="1" color="gray">Uploading...</Text></Flex>}
-                      {paymentProof && (
+                      {paymentProofUrl && (
                         <Box mt="2">
-                          <img src={paymentProof} alt="Payment proof" style={{ maxWidth: "100%", maxHeight: 150, borderRadius: 6, border: "1px solid var(--gray-6)" }} />
+                          <img src={paymentProofUrl} alt="Payment proof" style={{ maxWidth: "100%", maxHeight: 150, borderRadius: 6, border: "1px solid var(--gray-6)" }} />
                           <Text size="1" color="green" mt="1" style={{ display: "block" }}><CheckCircledIcon style={{ display: "inline", verticalAlign: "middle" }} /> Uploaded</Text>
                         </Box>
                       )}
@@ -305,7 +305,7 @@ const EventDetails = () => {
 
                     <Button
                       onClick={handlePurchase}
-                      disabled={submitting || !selectedVariant || !paymentProof || deadlinePassed || notOpen || uploading}
+                      disabled={submitting || !selectedVariant || !paymentProofUrl || deadlinePassed || notOpen || uploading}
                       style={{ width: "100%" }}
                       size="3"
                     >

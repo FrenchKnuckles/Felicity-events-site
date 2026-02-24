@@ -83,12 +83,14 @@ const EventForm = ({ mode = "create" }) => {
       const e = res?.event || res;
       setEvent(e);
       const fmt = (d) => d ? new Date(d).toISOString().slice(0, 16) : "";
+      // use tags from backend (schema field) as areasOfInterest for UI
+      const interests = e.tags || e.areasOfInterest || [];
       setEd({
         name: e.name || "", description: e.description || "", eventType: e.eventType || "normal",
         startDate: fmt(e.startDate), endDate: fmt(e.endDate), registrationDeadline: fmt(e.registrationDeadline),
         venue: e.venue || "", registrationFee: e.registrationFee || 0,
         registrationLimit: e.registrationLimit || "", eligibility: e.eligibility || "all",
-        areasOfInterest: e.areasOfInterest || [], customForm: e.customForm || [],
+        areasOfInterest: interests, customForm: e.customForm || [],
         variants: e.variants || [], purchaseLimitPerUser: e.purchaseLimitPerUser || 1,
         minTeamSize: e.minTeamSize || "", maxTeamSize: e.maxTeamSize || "",
       });
@@ -170,7 +172,8 @@ const EventForm = ({ mode = "create" }) => {
     try {
       const payload = {
         ...ed,
-        tags: ed.areasOfInterest,
+        // only send tags to backend; areasOfInterest is UI-only
+        tags: [...ed.areasOfInterest],
         registrationFee: ed.registrationFee === "" ? 0 : Number(ed.registrationFee),
         registrationLimit: ed.registrationLimit === "" ? undefined : Number(ed.registrationLimit),
         purchaseLimitPerUser: ed.purchaseLimitPerUser === "" ? 1 : Number(ed.purchaseLimitPerUser),
@@ -182,6 +185,7 @@ const EventForm = ({ mode = "create" }) => {
           stock: v.stock === "" ? 0 : Number(v.stock),
         })),
       };
+      if (!payload.tags || !Array.isArray(payload.tags)) payload.tags = [];
       if (isEdit) {
         await organizerService.updateEvent(id, payload);
         toast.success("Event updated successfully!");

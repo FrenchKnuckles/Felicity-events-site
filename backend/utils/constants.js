@@ -24,4 +24,5 @@ export const AREAS_OF_INTEREST = [
   "Finance & Trading",
   "Social Events",
   "Environment",
+  "Merchandise"
 ];
