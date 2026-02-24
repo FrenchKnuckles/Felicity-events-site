@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { eventService } from "../../services";
+import { fuzzySearch } from "../../utils/fuzzy";
 import { format } from "date-fns";
 import { Box, Card, Flex, Text, Button, Heading, Badge, Grid, TextField, Select, Spinner } from "@radix-ui/themes";
 import { MagnifyingGlassIcon, MixerHorizontalIcon, CalendarIcon, PersonIcon, ChevronLeftIcon, ChevronRightIcon, StarIcon, BackpackIcon, HeartFilledIcon } from "@radix-ui/react-icons";
@@ -14,8 +15,30 @@ const BrowseEvents = () => {
   const [pg, setPg] = useState({ page: 1, pages: 1, total: 0 });
 
   const fetchEvents = async (page = 1) => {
-    try { setLoading(true); const p = { ...filters, page }; Object.keys(p).forEach(k => !p[k] && delete p[k]); const d = await eventService.getEvents(p); setEvents(d.events); setPg({ page: d.page, pages: d.pages, total: d.total }); }
-    catch (e) { console.error("Error fetching events:", e); } finally { setLoading(false); }
+    try {
+      setLoading(true);
+      let p = { ...filters, page };
+      // do not send search parameter to backend; we handle fuzzy locally
+      delete p.search;
+      if (filters.search) {
+        // when searching, fetch a large batch to allow local fuzzy filtering
+        p.limit = 1000;
+        p.page = 1;
+      }
+      Object.keys(p).forEach(k => !p[k] && delete p[k]);
+      const d = await eventService.getEvents(p);
+      let evts = d.events;
+      if (filters.search) {
+        evts = fuzzySearch(evts, filters.search, ["name", "organizerId.name"]);
+      }
+      setEvents(evts);
+      // when local filtering, pagination info is less accurate. we still update page/pages/total from server.
+      setPg({ page: d.page, pages: d.pages, total: d.total });
+    } catch (e) {
+      console.error("Error fetching events:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchEvents(); (async () => { try { setTrending(await eventService.getTrending()); } catch {} })(); }, []);
