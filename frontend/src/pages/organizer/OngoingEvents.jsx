@@ -38,7 +38,7 @@ const OngoingEvents = () => {
               <Flex gap="2" mt="2">
                 <Button asChild variant="soft" size="2" style={{ flex: 1 }}><Link to={`/organizer/events/${ev._id}/detail`}><EyeOpenIcon width="14" height="14" />Details</Link></Button>
                 <Button asChild variant="soft" size="2" color="green" style={{ flex: 1 }}><Link to={`/organizer/events/${ev._id}/attendance`}><CheckCircledIcon width="14" height="14" />Check-in</Link></Button>
-                <Button asChild variant="soft" size="2" color="purple"><Link to={`/organizer/events/${ev._id}/attendance`}><BarChartIcon width="14" height="14" /></Link></Button>
+                <Button asChild variant="soft" size="2" color="purple"><Link to={ev.eventType === "merchandise" ? `/organizer/events/${ev._id}/orders` : `/organizer/events/${ev._id}/attendance`}><BarChartIcon width="14" height="14" /></Link></Button>
               </Flex>
             </Flex></Card>
           ))}

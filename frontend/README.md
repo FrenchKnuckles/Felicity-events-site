@@ -448,6 +448,16 @@ QR scanner and live attendance tracking system.
 
 **Connects to:** `services/attendanceService.js` (scanQR, manualCheckIn, getDashboard, exportCSV, getAuditLogs, searchParticipant), uses `html5-qrcode` library for camera access
 
+#### `MerchandiseOrders.jsx`
+Dedicated page for organizers to review and approve/reject orders on a merchandise event. This is reachable via the dashboard or ongoing events listing when clicking the analytics icon for a merch event.
+
+- **Counts Summary:** Top cards showing pending/approved/rejected/cancelled order totals
+- **Filter Bar:** Dropdown to select order status and a refresh button
+- **Orders Table:** Buyer name & email, variant details, amount, payment proof thumbnail (clickable), status badge, creation date, and approve/reject actions for pending orders
+- **Action Feedback:** Buttons disabled while an action is pending; toast notifications on success/failure
+
+**Connects to:** `services/organizerService.js` (`getMerchandiseOrders`, `approveMerchandiseOrder`, `rejectMerchandiseOrder`)
+
 #### `OrganizerProfile.jsx`
 Organizer self-service profile editing page.
 

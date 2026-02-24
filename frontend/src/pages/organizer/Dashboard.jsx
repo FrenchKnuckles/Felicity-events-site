@@ -199,14 +199,12 @@ const OrganizerDashboard = () => {
                     <Button asChild variant="ghost" size="2"><Link to={`/organizer/events/${ev._id}/detail`} title="View Details"><EyeOpenIcon width="18" height="18" /></Link></Button>
                     {(ev.status === "draft" || ev.status === "published") && <Button asChild variant="ghost" size="2" color="green"><Link to={`/organizer/events/${ev._id}/edit`} title="Edit"><Pencil1Icon width="18" height="18" /></Link></Button>}
                     {ev.registrationCount > 0 && <Button variant="ghost" size="2" color="purple" onClick={() => exportCSV(ev._id)} title="Export CSV"><DownloadIcon width="18" height="18" /></Button>}
-                    {/* analytics/attendance button only for non-merchandise events */}
-                    {ev.eventType !== "merchandise" && (
-                      <Button asChild variant="ghost" size="2" color="yellow">
-                        <Link to={`/organizer/events/${ev._id}/attendance`} title="Attendance">
-                          <BarChartIcon width="18" height="18" />
-                        </Link>
-                      </Button>
-                    )}
+                    {/* analytics / orders button (attendance for normal events, orders for merch) */}
+                    <Button asChild variant="ghost" size="2" color="yellow">
+                      <Link to={ev.eventType === "merchandise" ? `/organizer/events/${ev._id}/orders` : `/organizer/events/${ev._id}/attendance`} title={ev.eventType === "merchandise" ? "Orders" : "Attendance"}>
+                        <BarChartIcon width="18" height="18" />
+                      </Link>
+                    </Button>
                   </Flex>
                 </Flex>
               </Card>
@@ -229,7 +227,15 @@ const OrganizerDashboard = () => {
         ))}
         <Card style={{ cursor: "pointer" }} onClick={() => {
           const ae = events.find(e => ["published", "ongoing"].includes(e.status));
-          ae ? navigate(`/organizer/events/${ae._id}/attendance`) : toast.info("No active events for check-in. Publish an event first.");
+          if (ae) {
+            if (ae.eventType === "merchandise") {
+              navigate(`/organizer/events/${ae._id}/orders`);
+            } else {
+              navigate(`/organizer/events/${ae._id}/attendance`);
+            }
+          } else {
+            toast.info("No active events for check-in. Publish an event first.");
+          }
         }}>
           <Flex align="center" gap="4">
             <Box p="3" style={{ backgroundColor: "var(--purple-3)", borderRadius: "var(--radius-3)" }}><CheckCircledIcon width="24" height="24" color="var(--purple-9)" /></Box>

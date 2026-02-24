@@ -17,6 +17,7 @@ const OrganizerEventDetail = () => {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const initialTab = query.get("tab") || "overview";
+  const [tabValue, setTabValue] = useState(initialTab);
   const [participants, setParticipants] = useState([]);
   const [filtered, setFiltered] = useState([]);
   // keep track of active tab if needed (optional)
@@ -47,7 +48,13 @@ const OrganizerEventDetail = () => {
   const fetchAll = async () => {
     try {
       const [eRes, aRes] = await Promise.all([organizerService.getEventDetails(id), organizerService.getEventAnalytics(id).catch(() => null)]);
-      const ev = eRes?.event || eRes; setEvent(ev); setAnalytics(aRes);
+      const ev = eRes?.event || eRes;
+      setEvent(ev);
+      setAnalytics(aRes);
+      // if a merchandise event and we were trying to land on analytics, switch to orders
+      if (ev?.eventType === "merchandise" && tabValue === "analytics") {
+        setTabValue("orders");
+      }
       try { const pRes = await organizerService.getParticipants(id); setParticipants(pRes?.participants || []); } catch { setParticipants([]); }
       if (ev?.eventType === "merchandise") fetchMerchOrders();
     } catch { toast.error("Failed to fetch event details"); navigate("/organizer/dashboard"); }
@@ -117,10 +124,10 @@ const OrganizerEventDetail = () => {
         </Flex>
       </Flex>
 
-      <Tabs.Root defaultValue={initialTab}>
+      <Tabs.Root value={tabValue} onValueChange={setTabValue}>
         <Tabs.List mb="6">
           <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
-          <Tabs.Trigger value="analytics">Analytics</Tabs.Trigger>
+          {event.eventType !== "merchandise" && <Tabs.Trigger value="analytics">Analytics</Tabs.Trigger>}
           <Tabs.Trigger value="participants">Participants ({participants.length})</Tabs.Trigger>
           {event.eventType === "merchandise" && <Tabs.Trigger value="orders">Merchandise Orders</Tabs.Trigger>}
         </Tabs.List>
@@ -153,39 +160,41 @@ const OrganizerEventDetail = () => {
           </Grid>
         </Tabs.Content>
 
-        <Tabs.Content value="analytics">
-          <Grid columns={{ initial: "2", md: "4" }} gap="4" mb="6">
-            {[
-              { v: stats.totalRegistrations ?? event.registrationCount ?? 0, l: "Total Registrations", c: "blue" },
-              { v: stats.confirmed ?? 0, l: "Confirmed", c: "green" },
-              { v: stats.attended ?? 0, l: "Attended", c: "purple" },
-              { v: `₹${stats.revenue ?? event.revenue ?? 0}`, l: "Revenue", c: "yellow" },
-            ].map(s => <Card key={s.l}><Flex direction="column" align="center"><Text size="6" weight="bold" color={s.c}>{s.v}</Text><Text size="2" color="gray">{s.l}</Text></Flex></Card>)}
-          </Grid>
-          <Grid columns={{ initial: "1", md: "2" }} gap="4" mb="6">
-            <Card>
-              <Heading size="4" mb="4">Attendance</Heading>
-              <Flex direction="column" gap="3">
-                <Row l="Attendance Rate" v={`${stats.attendanceRate ?? 0}%`} /><Row l="Attended" v={String(stats.attended ?? 0)} /><Row l="Cancelled" v={<Text color="red">{stats.cancelled ?? 0}</Text>} />
-              </Flex>
-            </Card>
-            <Card>
-              <Heading size="4" mb="4">Team Completion</Heading>
-              {ts ? <Flex direction="column" gap="3"><Row l="Total Teams" v={String(ts.totalTeams)} /><Row l="Complete Teams" v={<Text color="green">{ts.completeTeams}</Text>} /><Row l="Incomplete Teams" v={<Text color="orange">{ts.incompleteTeams}</Text>} /><Row l="Completion Rate" v={`${ts.completionRate}%`} /></Flex> : <Text color="gray" size="2">No team data for this event</Text>}
-            </Card>
-          </Grid>
-          {analytics?.registrationTrend?.length > 0 && (
-            <Card mb="6">
-              <Heading size="4" mb="4">Registration Trend (Last 7 Days)</Heading>
-              <Flex gap="2" align="end" style={{ height: 120 }}>
-                {analytics.registrationTrend.map(d => {
-                  const mx = Math.max(...analytics.registrationTrend.map(x => x.count), 1);
-                  return <Flex key={d._id} direction="column" align="center" gap="1" style={{ flex: 1 }}><Text size="1" weight="bold">{d.count}</Text><Box style={{ width: "100%", height: `${(d.count/mx)*80}px`, backgroundColor: "var(--blue-9)", borderRadius: "var(--radius-1)", minHeight: 4 }} /><Text size="1" color="gray">{d._id.slice(5)}</Text></Flex>;
-                })}
-              </Flex>
-            </Card>
-          )}
-        </Tabs.Content>
+        {event.eventType !== "merchandise" && (
+          <Tabs.Content value="analytics">
+            <Grid columns={{ initial: "2", md: "4" }} gap="4" mb="6">
+              {[
+                { v: stats.totalRegistrations ?? event.registrationCount ?? 0, l: "Total Registrations", c: "blue" },
+                { v: stats.confirmed ?? 0, l: "Confirmed", c: "green" },
+                { v: stats.attended ?? 0, l: "Attended", c: "purple" },
+                { v: `₹${stats.revenue ?? event.revenue ?? 0}`, l: "Revenue", c: "yellow" },
+              ].map(s => <Card key={s.l}><Flex direction="column" align="center"><Text size="6" weight="bold" color={s.c}>{s.v}</Text><Text size="2" color="gray">{s.l}</Text></Flex></Card>)}
+            </Grid>
+            <Grid columns={{ initial: "1", md: "2" }} gap="4" mb="6">
+              <Card>
+                <Heading size="4" mb="4">Attendance</Heading>
+                <Flex direction="column" gap="3">
+                  <Row l="Attendance Rate" v={`${stats.attendanceRate ?? 0}%`} /><Row l="Attended" v={String(stats.attended ?? 0)} /><Row l="Cancelled" v={<Text color="red">{stats.cancelled ?? 0}</Text>} />
+                </Flex>
+              </Card>
+              <Card>
+                <Heading size="4" mb="4">Team Completion</Heading>
+                {ts ? <Flex direction="column" gap="3"><Row l="Total Teams" v={String(ts.totalTeams)} /><Row l="Complete Teams" v={<Text color="green">{ts.completeTeams}</Text>} /><Row l="Incomplete Teams" v={<Text color="orange">{ts.incompleteTeams}</Text>} /><Row l="Completion Rate" v={`${ts.completionRate}%`} /></Flex> : <Text color="gray" size="2">No team data for this event</Text>}
+              </Card>
+            </Grid>
+            {analytics?.registrationTrend?.length > 0 && (
+              <Card mb="6">
+                <Heading size="4" mb="4">Registration Trend (Last 7 Days)</Heading>
+                <Flex gap="2" align="end" style={{ height: 120 }}>
+                  {analytics.registrationTrend.map(d => {
+                    const mx = Math.max(...analytics.registrationTrend.map(x => x.count), 1);
+                    return <Flex key={d._id} direction="column" align="center" gap="1" style={{ flex: 1 }}><Text size="1" weight="bold">{d.count}</Text><Box style={{ width: "100%", height: `${(d.count/mx)*80}px`, backgroundColor: "var(--blue-9)", borderRadius: "var(--radius-1)", minHeight: 4 }} /><Text size="1" color="gray">{d._id.slice(5)}</Text></Flex>;
+                  })}
+                </Flex>
+              </Card>
+            )}
+          </Tabs.Content>
+        )}
 
         <Tabs.Content value="participants">
           <Card mb="4">

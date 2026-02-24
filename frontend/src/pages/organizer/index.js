@@ -5,3 +5,4 @@ export { default as AttendanceDashboard } from "./AttendanceDashboard";
 export { default as OrganizerProfile } from "./OrganizerProfile";
 export { default as OngoingEvents } from "./OngoingEvents";
 export { default as OrganizerEventDetail } from "./OrganizerEventDetail";
+export { default as MerchandiseOrders } from "./MerchandiseOrders";
