@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { organizerService } from "../../services";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -14,9 +14,12 @@ const OrganizerEventDetail = () => {
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+  const initialTab = query.get("tab") || "overview";
   const [participants, setParticipants] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [tabValue, setTabValue] = useState("overview");
+  // keep track of active tab if needed (optional)
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("all");
@@ -114,14 +117,7 @@ const OrganizerEventDetail = () => {
         </Flex>
       </Flex>
 
-      <Tabs.Root value={tabValue} onValueChange={(v) => {
-          // for merchandise events redirect analytics selection to orders
-          if (v === "analytics" && event?.eventType === "merchandise") {
-            setTabValue("orders");
-          } else {
-            setTabValue(v);
-          }
-        }}>
+      <Tabs.Root defaultValue={initialTab}>
         <Tabs.List mb="6">
           <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
           <Tabs.Trigger value="analytics">Analytics</Tabs.Trigger>

@@ -15,6 +15,7 @@ const OrganizerDashboard = () => {
   const [profile, setProfile] = useState(null);
   const [events, setEvents] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+  const [eventAnalytics, setEventAnalytics] = useState({}); // keyed by eventId
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [resetReason, setResetReason] = useState("");
@@ -25,8 +26,27 @@ const OrganizerDashboard = () => {
     (async () => {
       try {
         const [p, e, a] = await Promise.all([organizerService.getProfile(), organizerService.getMyEvents(), organizerService.getAnalytics()]);
-        setProfile(p || {}); setEvents(Array.isArray(e) ? e : e?.events || []); setAnalytics(a || {});
-      } catch { setProfile(v => v || {}); setEvents(v => v || []); setAnalytics(v => v || {}); }
+        setProfile(p || {});
+        const evts = Array.isArray(e) ? e : e?.events || [];
+        setEvents(evts);
+        setAnalytics(a || {});
+        // fetch analytics for each completed event
+        const completed = evts.filter(ev => ev.status === "completed");
+        const statsObj = {};
+        await Promise.all(completed.map(async ev => {
+          try {
+            const res = await organizerService.getEventAnalytics(ev._id);
+            statsObj[ev._id] = res.stats || {};
+          } catch {
+            statsObj[ev._id] = {};
+          }
+        }));
+        setEventAnalytics(statsObj);
+      } catch {
+        setProfile(v => v || {});
+        setEvents(v => v || []);
+        setAnalytics(v => v || {});
+      }
       finally { setLoading(false); }
     })();
   }, []);
@@ -100,8 +120,35 @@ const OrganizerDashboard = () => {
                 <Text size="2" color="gray" style={{ display: "block" }}>{s.l}</Text>
               </Box>
             ))}
-          </Grid>
-        </Card>
+          </Grid>          {/* per-event breakdown table */}
+          {events.filter(ev => ev.status === "completed").length > 0 && (
+            <Box mt="6">
+              <Text weight="medium" mb="2">Completed events breakdown</Text>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: 8 }}>Event</th>
+                    <th style={{ textAlign: "right", padding: 8 }}>Registrations</th>
+                    <th style={{ textAlign: "right", padding: 8 }}>Revenue</th>
+                    <th style={{ textAlign: "right", padding: 8 }}>Attendance %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.filter(ev => ev.status === "completed").map(ev => {
+                    const st = eventAnalytics[ev._id] || {};
+                    return (
+                      <tr key={ev._id}>
+                        <td style={{ padding: 8 }}>{ev.name}</td>
+                        <td style={{ padding: 8, textAlign: "right" }}>{st.totalRegistrations ?? ev.registrationCount}</td>
+                        <td style={{ padding: 8, textAlign: "right" }}>₹{st.totalRevenue ?? ev.revenue}</td>
+                        <td style={{ padding: 8, textAlign: "right" }}>{st.attendanceRate != null ? `${st.attendanceRate}%` : "-"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Box>
+          )}        </Card>
       )}
 
       <Card>
@@ -152,7 +199,14 @@ const OrganizerDashboard = () => {
                     <Button asChild variant="ghost" size="2"><Link to={`/organizer/events/${ev._id}/detail`} title="View Details"><EyeOpenIcon width="18" height="18" /></Link></Button>
                     {(ev.status === "draft" || ev.status === "published") && <Button asChild variant="ghost" size="2" color="green"><Link to={`/organizer/events/${ev._id}/edit`} title="Edit"><Pencil1Icon width="18" height="18" /></Link></Button>}
                     {ev.registrationCount > 0 && <Button variant="ghost" size="2" color="purple" onClick={() => exportCSV(ev._id)} title="Export CSV"><DownloadIcon width="18" height="18" /></Button>}
-                    <Button asChild variant="ghost" size="2" color="yellow"><Link to={`/organizer/events/${ev._id}/attendance`} title="Attendance"><BarChartIcon width="18" height="18" /></Link></Button>
+                    {/* analytics/attendance button only for non-merchandise events */}
+                    {ev.eventType !== "merchandise" && (
+                      <Button asChild variant="ghost" size="2" color="yellow">
+                        <Link to={`/organizer/events/${ev._id}/attendance`} title="Attendance">
+                          <BarChartIcon width="18" height="18" />
+                        </Link>
+                      </Button>
+                    )}
                   </Flex>
                 </Flex>
               </Card>
