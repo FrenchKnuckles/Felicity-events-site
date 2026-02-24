@@ -41,25 +41,25 @@ const MerchandiseFields = ({ ed, onChange, addVariant, updVariant, rmVariant }) 
     <Flex align="center" gap="2" mb="2"><CubeIcon width="20" height="20" /><Heading size="4">Merchandise Variants</Heading></Flex>
     <Box mb="3">
       <Text as="label" size="2" weight="medium">Purchase Limit Per User *</Text>
-      <TextField.Root type="number" name="purchaseLimitPerUser" value={ed.purchaseLimitPerUser} onChange={onChange} min="1" size="3" mt="1" style={{ width: 128 }} />
+      <TextField.Root type="number" name="purchaseLimitPerUser" value={ed.purchaseLimitPerUser} onChange={onChange} min="1" size="3" mt="1" style={{ width: 128 }} disabled={!canEditField("variants")} />
     </Box>
     {ed.variants.map((v, i) => (
       <Card key={i} variant="surface" mb="2">
         <Flex justify="between" align="center" mb="2">
           <Text weight="medium" size="2">Variant {i + 1}</Text>
-          <Button type="button" variant="ghost" color="red" size="1" onClick={() => rmVariant(i)} title="Delete variant"><TrashIcon /></Button>
+          <Button type="button" variant="ghost" color="red" size="1" onClick={() => canEditField("variants") && rmVariant(i)} title="Delete variant" disabled={!canEditField("variants")}><TrashIcon /></Button>
         </Flex>
         <Grid columns={{ initial: "2", md: "4" }} gap="3">
           {[['Size', 'size', 'S, M, L'], ['Color', 'color', 'Black'], ['Price (₹)', 'price', '0'], ['Stock', 'stock', '0']].map(([l, f, ph]) => (
             <Box key={f}>
               <Text as="label" size="1" weight="medium">{l} *</Text>
-              <TextField.Root type={f === 'price' || f === 'stock' ? 'number' : 'text'} value={v[f] ?? ""} onChange={(e) => updVariant(i, f, e.target.value)} placeholder={ph} size="2" mt="1" min={f === 'price' || f === 'stock' ? "0" : undefined} />
+              <TextField.Root type={f === 'price' || f === 'stock' ? 'number' : 'text'} value={v[f] ?? ""} onChange={(e) => canEditField("variants") && updVariant(i, f, e.target.value)} placeholder={ph} size="2" mt="1" min={f === 'price' || f === 'stock' ? "0" : undefined} disabled={!canEditField("variants")} />
             </Box>
           ))}
         </Grid>
       </Card>
     ))}
-    <Button type="button" variant="outline" onClick={addVariant} mb="4"><PlusIcon /> Add Variant</Button>
+    <Button type="button" variant="outline" onClick={addVariant} mb="4" disabled={!canEditField("variants")}><PlusIcon /> Add Variant</Button>
   </>
 );
 
@@ -70,6 +70,21 @@ const EventForm = ({ mode = "create" }) => {
   const isEdit = mode === "edit";
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(isEdit);
+
+  // status flags (values undefined until event fetched)
+  const isDraft = event?.status === "draft";
+  const isPublished = event?.status === "published";
+  const isLocked = isEdit && !isDraft && !isPublished; // ongoing/completed/closed
+
+  const canEditField = (field) => {
+    if (!isEdit) return true; // create mode
+    if (isDraft) return true;
+    if (isPublished) {
+      // only description, registrationDeadline, registrationLimit are modifiable after publish
+      return ["description", "registrationDeadline", "registrationLimit"].includes(field);
+    }
+    return false;
+  };
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams?.get("tab") || "details");
   const [event, setEvent] = useState(null);
@@ -225,7 +240,7 @@ const EventForm = ({ mode = "create" }) => {
         <Text as="label" size="2" weight="medium">Event Type *</Text>
         <Grid columns="2" gap="3" mt="2">
           {[["normal", "Normal Event", "Workshop, Competition", CalendarIcon, "blue"], ["merchandise", "Merchandise", "T-shirts, Goodies", CubeIcon, "purple"]].map(([val, title, sub, Icon, color]) => (
-            <Box key={val} role="button" tabIndex={0} onClick={() => setEd((p) => ({ ...p, eventType: val }))} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setEd((p) => ({ ...p, eventType: val })); }} style={{ padding: 12, borderRadius: 8, border: `2px solid ${ed.eventType === val ? `var(--${color}-9)` : "var(--gray-5)"}`, backgroundColor: ed.eventType === val ? `var(--${color}-2)` : "transparent", cursor: "pointer", textAlign: "center", transition: "all 200ms ease" }}>
+            <Box key={val} role="button" tabIndex={0} onClick={() => canEditField("eventType") && setEd((p) => ({ ...p, eventType: val }))} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && canEditField("eventType")) setEd((p) => ({ ...p, eventType: val })); }} style={{ padding: 12, borderRadius: 8, border: `2px solid ${ed.eventType === val ? `var(--${color}-9)` : "var(--gray-5)"}`, backgroundColor: ed.eventType === val ? `var(--${color}-2)` : "transparent", cursor: canEditField("eventType") ? "pointer" : "not-allowed", textAlign: "center", transition: "all 200ms ease", opacity: canEditField("eventType") ? 1 : 0.5 }}>
               <Icon width="28" height="28" color={`var(--${color}-9)`} style={{ margin: "0 auto 6px" }} />
               <Text weight="medium" size="2">{title}</Text>
               <Text size="1" color="gray">{sub}</Text>
@@ -236,16 +251,16 @@ const EventForm = ({ mode = "create" }) => {
       </Box>
       <Box>
         <Text as="label" size="2" weight="medium">Event Name *</Text>
-        <TextField.Root name="name" value={ed.name} onChange={onChange} placeholder="Enter event name" size="3" mt="1" />
+        <TextField.Root name="name" value={ed.name} onChange={onChange} placeholder="Enter event name" size="3" mt="1" disabled={!canEditField("name")} />
       </Box>
       <Box>
         <Text as="label" size="2" weight="medium">Description *</Text>
-        <TextArea name="description" value={ed.description} onChange={onChange} placeholder="Describe your event..." rows={4} size="3" style={{ marginTop: 4 }} />
+        <TextArea name="description" value={ed.description} onChange={onChange} placeholder="Describe your event..." rows={4} size="3" style={{ marginTop: 4 }} disabled={!canEditField("description")} />
       </Box>
       <Box>
         <Text as="label" size="2" weight="medium">Eligibility *</Text>
-        <Select.Root value={ed.eligibility} onValueChange={(v) => setEd((p) => ({ ...p, eligibility: v }))}>
-          <Select.Trigger style={{ width: "100%", marginTop: 4 }} />
+        <Select.Root value={ed.eligibility} onValueChange={(v) => canEditField("eligibility") && setEd((p) => ({ ...p, eligibility: v }))}>
+          <Select.Trigger style={{ width: "100%", marginTop: 4 }} disabled={!canEditField("eligibility")} />
           <Select.Content>
             <Select.Item value="all">Open to All</Select.Item>
             <Select.Item value="iiit-only">IIIT Students Only</Select.Item>
@@ -257,7 +272,7 @@ const EventForm = ({ mode = "create" }) => {
         <Text as="label" size="2" weight="medium">Areas of Interest</Text>
         <Flex wrap="wrap" gap="2" mt="2">
           {AREAS.map((a) => (
-            <Button key={a} type="button" onClick={() => toggleInterest(a)} variant={ed.areasOfInterest.includes(a) ? "solid" : "soft"} color={ed.areasOfInterest.includes(a) ? "blue" : "gray"} size="1" radius="full">{a}</Button>
+            <Button key={a} type="button" onClick={() => canEditField("areasOfInterest") && toggleInterest(a)} variant={ed.areasOfInterest.includes(a) ? "solid" : "soft"} color={ed.areasOfInterest.includes(a) ? "blue" : "gray"} size="1" radius="full" disabled={!canEditField("areasOfInterest")} style={{ opacity: canEditField("areasOfInterest") ? 1 : 0.5 }}>{a}</Button>
           ))}
         </Flex>
       </Box>
@@ -282,24 +297,24 @@ const EventForm = ({ mode = "create" }) => {
       <Box>
         <Text as="label" size="2" weight="medium">Registration Deadline *</Text>
         <Flex gap="3" mt="1">
-          <TextField.Root type="date" value={splitDT(ed.registrationDeadline).date} onChange={(e) => updDate("registrationDeadline", e.target.value)} size="3" />
-          <TextField.Root type="time" value={splitDT(ed.registrationDeadline).time} onChange={(e) => updTime("registrationDeadline", e.target.value)} size="3" />
+          <TextField.Root type="date" value={splitDT(ed.registrationDeadline).date} onChange={(e) => canEditField("registrationDeadline") && updDate("registrationDeadline", e.target.value)} size="3" disabled={!canEditField("registrationDeadline")} />
+          <TextField.Root type="time" value={splitDT(ed.registrationDeadline).time} onChange={(e) => canEditField("registrationDeadline") && updTime("registrationDeadline", e.target.value)} size="3" disabled={!canEditField("registrationDeadline")} />
         </Flex>
       </Box>
       {ed.eventType !== "merchandise" && (
         <>
           <Box>
             <Text as="label" size="2" weight="medium">📍 Venue</Text>
-            <TextField.Root type="text" name="venue" value={ed.venue} onChange={onChange} placeholder="Enter venue" size="3" mt="1" />
+            <TextField.Root type="text" name="venue" value={ed.venue} onChange={onChange} placeholder="Enter venue" size="3" mt="1" disabled={!canEditField("venue")} />
           </Box>
           <Grid columns={{ initial: "1", md: "2" }} gap="4">
             <Box>
               <Text as="label" size="2" weight="medium">₹ Registration Fee</Text>
-              <TextField.Root type="number" name="registrationFee" value={ed.registrationFee} onChange={onChange} min="0" placeholder="0 for free" size="3" mt="1" />
+              <TextField.Root type="number" name="registrationFee" value={ed.registrationFee} onChange={onChange} min="0" placeholder="0 for free" size="3" mt="1" disabled={!canEditField("registrationFee")} />
             </Box>
             <Box>
               <Text as="label" size="2" weight="medium">👥 Registration Limit</Text>
-              <TextField.Root type="number" name="registrationLimit" value={ed.registrationLimit} onChange={onChange} min="0" placeholder="Unlimited" size="3" mt="1" />
+              <TextField.Root type="number" name="registrationLimit" value={ed.registrationLimit} onChange={onChange} min="0" placeholder="Unlimited" size="3" mt="1" disabled={!canEditField("registrationLimit")} />
             </Box>
           </Grid>
         </>
@@ -308,11 +323,11 @@ const EventForm = ({ mode = "create" }) => {
         <Grid columns={{ initial: "1", md: "2" }} gap="4">
           <Box>
             <Text as="label" size="2" weight="medium">Min Team Size</Text>
-            <TextField.Root type="number" name="minTeamSize" value={ed.minTeamSize} onChange={onChange} min="1" placeholder="Min members" size="3" mt="1" />
+            <TextField.Root type="number" name="minTeamSize" value={ed.minTeamSize} onChange={onChange} min="1" placeholder="Min members" size="3" mt="1" disabled={!canEditField("minTeamSize")} />
           </Box>
           <Box>
             <Text as="label" size="2" weight="medium">Max Team Size</Text>
-            <TextField.Root type="number" name="maxTeamSize" value={ed.maxTeamSize} onChange={onChange} min="1" placeholder="Max members" size="3" mt="1" />
+            <TextField.Root type="number" name="maxTeamSize" value={ed.maxTeamSize} onChange={onChange} min="1" placeholder="Max members" size="3" mt="1" disabled={!canEditField("maxTeamSize")} />
           </Box>
         </Grid>
       )}
@@ -335,9 +350,9 @@ const EventForm = ({ mode = "create" }) => {
               <Flex justify="between" align="center" mb="2">
                 <Text weight="medium" size="2">Field {i + 1}</Text>
                 <Flex gap="1">
-                  <Button type="button" variant="ghost" size="1" onClick={() => moveField(i, -1)} disabled={i === 0} title="Move up"><ArrowUpIcon width="14" height="14" /></Button>
-                  <Button type="button" variant="ghost" size="1" onClick={() => moveField(i, 1)} disabled={i === ed.customForm.length - 1} title="Move down"><ArrowDownIcon width="14" height="14" /></Button>
-                  <Button type="button" variant="ghost" color="red" size="1" onClick={() => rmField(i)} title="Delete field"><TrashIcon /></Button>
+                  <Button type="button" variant="ghost" size="1" onClick={() => canEditField("customForm") && moveField(i, -1)} disabled={i === 0 || !canEditField("customForm")} title="Move up"><ArrowUpIcon width="14" height="14" /></Button>
+                  <Button type="button" variant="ghost" size="1" onClick={() => canEditField("customForm") && moveField(i, 1)} disabled={i === ed.customForm.length - 1 || !canEditField("customForm")} title="Move down"><ArrowDownIcon width="14" height="14" /></Button>
+                  <Button type="button" variant="ghost" color="red" size="1" onClick={() => canEditField("customForm") && rmField(i)} disabled={!canEditField("customForm")} title="Delete field"><TrashIcon /></Button>
                 </Flex>
               </Flex>
               <Grid columns={{ initial: "1", md: "3" }} gap="3">
@@ -364,7 +379,7 @@ const EventForm = ({ mode = "create" }) => {
               )}
             </Card>
           ))}
-          <Button type="button" variant="outline" onClick={addField}><PlusIcon /> Add Field</Button>
+          <Button type="button" variant="outline" onClick={addField} disabled={!canEditField("customForm")}><PlusIcon /> Add Field</Button>
         </>
       )}
     </Flex>
@@ -475,6 +490,9 @@ const EventForm = ({ mode = "create" }) => {
       {event?.status === "published" && (
         <Callout.Root color="blue" mb="4"><Callout.Icon><InfoCircledIcon /></Callout.Icon><Callout.Text>Changes to published events are applied immediately.</Callout.Text></Callout.Root>
       )}
+      {isLocked && (
+        <Callout.Root color="red" mb="4"><Callout.Icon><ExclamationTriangleIcon /></Callout.Icon><Callout.Text>This event is {event?.status} and cannot be edited except for status change.</Callout.Text></Callout.Root>
+      )}
       <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
         <Tabs.List>
           <Tabs.Trigger value="details">Details</Tabs.Trigger>
@@ -489,7 +507,7 @@ const EventForm = ({ mode = "create" }) => {
       </Tabs.Root>
       <Flex justify="end" mt="6" gap="3">
         <Button variant="outline" onClick={() => navigate(`/organizer/events/${id}`)}>Cancel</Button>
-        <Button onClick={() => handleSubmit()} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
+        <Button onClick={() => handleSubmit()} disabled={saving || isLocked}>{saving ? "Saving..." : "Save Changes"}</Button>
       </Flex>
     </Box>
   );
