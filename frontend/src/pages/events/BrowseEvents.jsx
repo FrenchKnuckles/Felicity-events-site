@@ -25,7 +25,9 @@ const BrowseEvents = () => {
         p.limit = 1000;
         p.page = 1;
       }
-      Object.keys(p).forEach(k => !p[k] && delete p[k]);
+      Object.keys(p).forEach(k => {
+        if (p[k] === "" || p[k] === "all") delete p[k];
+      });
       const d = await eventService.getEvents(p);
       let evts = d.events;
       if (filters.search) {
@@ -79,9 +81,9 @@ const BrowseEvents = () => {
         </Flex>
         {showFilters && <Box mt="4" pt="4" style={{ borderTop: "1px solid var(--gray-a5)" }}>
           <Grid columns={{ initial: "1", md: "4" }} gap="4">
-            {[["Event Type", "eventType", [["", "All Types"], ["normal", "Normal Event"], ["merchandise", "Merchandise"]]],
-              ["Eligibility", "eligibility", [["", "All"], ["all", "Open to All"], ["iiit-only", "IIIT Only"], ["non-iiit-only", "Non-IIIT Only"]]]
-            ].map(([label, key, opts]) => <Box key={key}><Text as="label" size="2" weight="medium" mb="1">{label}</Text><Select.Root value={filters[key]} onValueChange={v => set(key, v)}><Select.Trigger placeholder={opts[0][1]} style={{ width: "100%" }} /><Select.Content>{opts.map(([v, l]) => <Select.Item key={v} value={v}>{l}</Select.Item>)}</Select.Content></Select.Root></Box>)}
+            {[["Event Type", "eventType", [["normal", "Normal Event"], ["merchandise", "Merchandise"]]],
+              ["Eligibility", "eligibility", [["all", "Open to All"], ["iiit-only", "IIIT Only"], ["non-iiit-only", "Non-IIIT Only"]]]
+            ].map(([label, key, opts]) => <Box key={key}><Text as="label" size="2" weight="medium" mb="1">{label}</Text><Select.Root value={filters[key]} onValueChange={v => set(key, v)}><Select.Trigger placeholder={label === "Event Type" ? "All Types" : "All"} style={{ width: "100%" }} /><Select.Content>{opts.map(([v, l]) => <Select.Item key={v} value={v}>{l}</Select.Item>)}</Select.Content></Select.Root></Box>)}
             {[["From Date", "startDate"], ["To Date", "endDate"]].map(([label, key]) => <Box key={key}><Text as="label" size="2" weight="medium" mb="1">{label}</Text><input type="date" value={filters[key]} onChange={e => set(key, e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid var(--gray-a7)", backgroundColor: "var(--color-background)" }} /></Box>)}
           </Grid>
           <Flex align="center" justify="between" mt="4"><Button type="button" variant={filters.followed === "true" ? "solid" : "outline"} size="2" onClick={() => set("followed", filters.followed === "true" ? "" : "true")}><HeartFilledIcon width={14} height={14} />Followed Clubs Only</Button><Button type="button" variant="ghost" onClick={clearFilters}>Clear all filters</Button></Flex>

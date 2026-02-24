@@ -16,6 +16,7 @@ const OrganizerEventDetail = () => {
   const [analytics, setAnalytics] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [filtered, setFiltered] = useState([]);
+  const [tabValue, setTabValue] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("all");
@@ -113,8 +114,20 @@ const OrganizerEventDetail = () => {
         </Flex>
       </Flex>
 
-      <Tabs.Root defaultValue="overview">
-        <Tabs.List mb="6"><Tabs.Trigger value="overview">Overview</Tabs.Trigger><Tabs.Trigger value="analytics">Analytics</Tabs.Trigger><Tabs.Trigger value="participants">Participants ({participants.length})</Tabs.Trigger>{event.eventType === "merchandise" && <Tabs.Trigger value="orders">Merchandise Orders</Tabs.Trigger>}</Tabs.List>
+      <Tabs.Root value={tabValue} onValueChange={(v) => {
+          // for merchandise events redirect analytics selection to orders
+          if (v === "analytics" && event?.eventType === "merchandise") {
+            setTabValue("orders");
+          } else {
+            setTabValue(v);
+          }
+        }}>
+        <Tabs.List mb="6">
+          <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
+          <Tabs.Trigger value="analytics">Analytics</Tabs.Trigger>
+          <Tabs.Trigger value="participants">Participants ({participants.length})</Tabs.Trigger>
+          {event.eventType === "merchandise" && <Tabs.Trigger value="orders">Merchandise Orders</Tabs.Trigger>}
+        </Tabs.List>
 
         <Tabs.Content value="overview">
           <Grid columns={{ initial: "1", md: "2" }} gap="6">

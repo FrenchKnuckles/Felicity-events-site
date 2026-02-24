@@ -1,7 +1,7 @@
 # Felicity Event Management System - Deployment URLs
 
 ## Frontend URL
-https://your-frontend-app.vercel.app
+https://felicity-events-site.vercel.app
 
 ## Backend API URL
 https://felicity-events-site.onrender.com

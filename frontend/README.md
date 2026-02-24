@@ -22,6 +22,8 @@ frontend/
     │
     ├── api/
     │   └── axios.js             # Axios instance (base URL, auth interceptor)
+    ├── utils/
+    │   └── fuzzy.js             # Fuse.js helper for fuzzy search (BrowseEvents)
     │
     ├── context/
     │   ├── AuthContext.jsx       # Authentication state management
@@ -88,6 +90,8 @@ Vite configuration with `@vitejs/plugin-react` for JSX/Fast Refresh support.
 
 #### `package.json`
 Scripts: `dev` (Vite dev server), `build` (production build), `lint` (ESLint), `preview` (preview production build).
+
+- **Dependencies:** React, Radix UI Themes, Axios, date-fns, react-toastify, html5-qrcode, plus `fuse.js` used for client‑side fuzzy/partial search on the Browse Events page.
 
 ---
 
