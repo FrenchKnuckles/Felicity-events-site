@@ -198,9 +198,28 @@ export const getOrganizerById = wrap(async (req, res) => {
   const org = await Organizer.findOne({ _id: req.params.id, isActive: true }).select("name category description contactEmail logo");
   if (!org) return res.status(404).json({ message: "Organizer not found" });
   const now = new Date();
-  const upcomingEvents = await Event.find({ organizerId: org._id, status: { $in: ["published", "ongoing"] }, startDate: { $gte: now } }).select("name eventType startDate description category");
-  const pastEvents = await Event.find({ organizerId: org._id, status: "completed" }).select("name eventType startDate description category");
-  res.json({ organizer: org, upcomingEvents, pastEvents });
+  const upcomingEvents = await Event.find({
+    organizerId: org._id,
+    status: { $in: ["published", "ongoing"] },
+    $or: [
+      { eventType: "merchandise" },
+      { startDate: { $gte: now } }
+    ]
+  }).select("name eventType startDate description category");
+  const pastEvents = await Event.find({
+    organizerId: org._id,
+    $or: [
+      { status: "completed" },
+      { startDate: { $lt: now }, status: { $in: ["published", "ongoing"] } }
+    ]
+  }).select("name eventType startDate description category");
+  // compute isFollowing if request has user
+  let isFollowing = false;
+  if (req.user) {
+    const u = await User.findById(req.user._id);
+    isFollowing = u?.followedOrganizers?.some(f => f.toString() === org._id.toString());
+  }
+  res.json({ organizer: org, upcomingEvents, pastEvents, isFollowing });
 });
 
 export const toggleFollowOrganizer = wrap(async (req, res) => {

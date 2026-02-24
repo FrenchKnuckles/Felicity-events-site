@@ -36,7 +36,7 @@ const splitDT = (v) => {
 };
 
 // FIX: Merchandise component with improved labels
-const MerchandiseFields = ({ ed, onChange, addVariant, updVariant, rmVariant }) => (
+const MerchandiseFields = ({ ed, onChange, addVariant, updVariant, rmVariant, canEditField }) => (
   <>
     <Flex align="center" gap="2" mb="2"><CubeIcon width="20" height="20" /><Heading size="4">Merchandise Variants</Heading></Flex>
     <Box mb="3">
@@ -72,6 +72,8 @@ const EventForm = ({ mode = "create" }) => {
   const [loading, setLoading] = useState(isEdit);
 
   // status flags (values undefined until event fetched)
+  const [event, setEvent] = useState(null);
+
   const isDraft = event?.status === "draft";
   const isPublished = event?.status === "published";
   const isLocked = isEdit && !isDraft && !isPublished; // ongoing/completed/closed
@@ -87,7 +89,6 @@ const EventForm = ({ mode = "create" }) => {
   };
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams?.get("tab") || "details");
-  const [event, setEvent] = useState(null);
   const [ed, setEd] = useState({ ...INIT_DATA });
 
   useEffect(() => { if (isEdit && id) fetchEvent(); }, [id, isEdit]);
@@ -247,7 +248,7 @@ const EventForm = ({ mode = "create" }) => {
             </Box>
           ))}
         </Grid>
-        {ed.eventType === "merchandise" && <Box mt="4"><MerchandiseFields ed={ed} onChange={onChange} addVariant={addVariant} updVariant={updVariant} rmVariant={rmVariant} /></Box>}
+        {ed.eventType === "merchandise" && <Box mt="4"><MerchandiseFields ed={ed} onChange={onChange} addVariant={addVariant} updVariant={updVariant} rmVariant={rmVariant} canEditField={canEditField} /></Box>}
       </Box>
       <Box>
         <Text as="label" size="2" weight="medium">Event Name *</Text>
@@ -339,7 +340,7 @@ const EventForm = ({ mode = "create" }) => {
       {ed.eventType === "merchandise" ? (
         <>
           <Text color="gray" size="2" mb="2">Add all available variants (size, color, price, stock) for this merchandise item. Stock will decrement only on payment approval. Set a purchase limit per participant if needed.</Text>
-          <MerchandiseFields ed={ed} onChange={onChange} addVariant={addVariant} updVariant={updVariant} rmVariant={rmVariant} />
+          <MerchandiseFields ed={ed} onChange={onChange} addVariant={addVariant} updVariant={updVariant} rmVariant={rmVariant} canEditField={canEditField} />
         </>
       ) : (
         <>

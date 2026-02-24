@@ -51,8 +51,11 @@ export const updateProfile = wrap(async (req, res) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   if (firstName) user.firstName = firstName; if (lastName) user.lastName = lastName;
   if (contactNumber) user.contactNumber = contactNumber; if (collegeOrg) user.collegeOrg = collegeOrg;
-  if (areasOfInterest) user.areasOfInterest = areasOfInterest; if (followedOrganizers) user.followedOrganizers = followedOrganizers;
+  if (areasOfInterest) user.areasOfInterest = areasOfInterest;
+  if (followedOrganizers) user.followedOrganizers = followedOrganizers;
   await user.save();
+  // populate followedOrganizers for client display
+  await user.populate("followedOrganizers", "name category");
   res.json({ message: "Profile updated successfully", user });
 });
 

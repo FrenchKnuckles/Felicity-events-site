@@ -34,8 +34,20 @@ const OrganizerDetail = () => {
   }, [id]);
 
   const toggleFollow = async () => {
-    try { setToggling(true); const r = await organizerService.toggleFollow(id); setFollowing(r.data.isFollowing); toast.success(r.data.isFollowing ? "Following!" : "Unfollowed"); }
-    catch { toast.error("Failed to update follow"); } finally { setToggling(false); }
+    try {
+      setToggling(true);
+      const r = await organizerService.toggleFollow(id);
+      console.log("toggleFollow response", r);
+      // backend should send { isFollowing: boolean }, but if not, flip locally
+      const newFollowState = typeof r.isFollowing === "boolean" ? r.isFollowing : !following;
+      setFollowing(newFollowState);
+      toast.success(newFollowState ? "Following!" : "Unfollowed");
+    } catch (err) {
+      console.error("toggleFollow error", err);
+      toast.error("Failed to update follow");
+    } finally {
+      setToggling(false);
+    }
   };
 
   if (loading) return <Flex align="center" justify="center" style={{ minHeight: "100vh", backgroundColor: "var(--gray-1)" }}><Spinner size="3" /></Flex>;

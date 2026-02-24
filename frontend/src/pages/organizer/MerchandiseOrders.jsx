@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { organizerService } from "../../services";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
-import { Box, Card, Flex, Text, Button, Heading, Grid, Spinner, Select } from "@radix-ui/themes";
+import { Box, Card, Flex, Text, Button, Heading, Grid, Spinner, Select, Badge } from "@radix-ui/themes";
 import { MixerHorizontalIcon, EnvelopeClosedIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons";
 
 const orderStatusColor = s => ({ pending: "orange", confirmed: "green", rejected: "red", cancelled: "gray" }[s] || "gray");

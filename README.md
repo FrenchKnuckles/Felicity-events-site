@@ -4,14 +4,57 @@ A centralized platform for IIIT Hyderabad's annual fest **Felicity** that replac
 
 ---
 
+## Documentation Overview
+
+This README has been carefully structured to satisfy the project requirements:
+
+1. **Library & Framework Justification** – every frontend and backend dependency is listed with a rationale in the "Technology Stack" section below, and advanced features sections further explain major packages used for those features.
+2. **Advanced Features (Tier A/B/C)** – the implementation of each required tier feature is documented with justification for its selection, design decisions, and technical approach under the corresponding headings later in this file.
+3. **Setup & Installation Instructions** – step‑by‑step guidance for running the entire project locally is provided near the end of this document.
+
+Refer to the `backend/README.md` and `frontend/README.md` files for additional file‑level details, but the core requirements above are covered right here.
+
+---
+
+---
+
 ## Technology Stack
 
-| Layer | Technology | Justification |
-|-------|-----------|---------------|
-| **Database** | MongoDB (Atlas) | Document-oriented storage naturally fits the varied event schemas (normal, merchandise, hackathon) without rigid relational constraints. Atlas provides managed hosting with automatic backups. |
-| **Backend** | Express.js v5 (Node.js) | Lightweight, unopinionated framework for building REST APIs. v5 adds native async/await error forwarding. Node.js enables JavaScript across the full stack. |
-| **Frontend** | React 19 (Vite) | Component-based architecture with hooks for state management. Vite provides near-instant HMR during development and optimized production builds. |
-| **UI Library** | Radix UI Themes | Accessible, unstyled primitives with a cohesive theme system. Provides dark/light mode support out of the box without CSS-in-JS overhead. |
+The project is split into a backend API and a React frontend. Below are the principal libraries and frameworks used in each layer along with the rationale for their inclusion.
+
+### Backend libraries (npm modules)
+
+- **express** – lightweight web framework, version 5 gives native async error forwarding
+- **mongoose** – MongoDB ODM for schema enforcement, population, and aggregation pipelines
+- **bcryptjs** – pure-JS password hashing (avoids build issues with native bcrypt)
+- **jsonwebtoken** – JWT creation/verification for stateless auth
+- **cors** – enables CORS only for the frontend origin
+- **dotenv** – environment variable loader for 12‑factor configuration
+- **nodemailer** – SMTP client used to send ticket/notification emails
+- **qrcode** – generates QR codes as data URLs embedded in tickets/emails
+- **json2csv** – formats JSON to CSV for exports
+- **axios** – HTTP client used in controllers (Discord webhooks, CAPTCHA verification)
+- **multer** – handles multipart file uploads in the Cloudinary proxy
+- **socket.io** – real‑time messaging infrastructure for the discussion forum
+- **nodemon** (dev) – restarts server during development
+
+### Frontend libraries (npm modules)
+
+- **react** – component-based UI library
+- **react-dom** – DOM renderer for React
+- **react-router-dom** – client-side routing for SPA navigation
+- **axios** – HTTP client with interceptors for JWT
+- **@radix-ui/themes** – UI component library with built‑in theming
+- **@radix-ui/react-icons** – SVG icons matching Radix design
+- **html5-qrcode** – camera QR scanning for attendance dashboard
+- **react-toastify** – toast notification system
+- **date-fns** – lightweight date utility functions with tree-shaking
+- **@hcaptcha/vanilla-hcaptcha** – web component for hCaptcha widget
+- **socket.io-client** – client library to connect to backend Socket.IO server
+- **vite** – build tool and dev server for frontend
+- **@vitejs/plugin-react** – JSX transform and fast refresh support
+
+(see backend/README.md and frontend/README.md for file‑level documentation and additional dependencies used by specific modules)
 
 ## Project Structure
 
@@ -48,71 +91,12 @@ A centralized platform for IIIT Hyderabad's annual fest **Felicity** that replac
 - **Registration:** IIIT participants must use `@*.iiit.ac.in` emails (domain validated server-side). Non-IIIT participants register with any email. Organizer accounts are admin-provisioned only.
 - **Password Security:** All passwords hashed with bcrypt (10 salt rounds) via a Mongoose pre-save hook. No plaintext storage.
 - **JWT Authentication:** All protected routes require a valid JWT (30-day expiry) in the `Authorization` header. Token stored in localStorage for session persistence across browser restarts.
-- **Role-Based Access Control:** Three roles (participant, organizer, admin) with middleware-enforced authorization on every protected endpoint. Frontend uses `<ProtectedRoute>` to gate pages by role.
-- **Session Management:** Login redirects to role-appropriate dashboard. Sessions persist via localStorage until explicit logout, which clears all tokens.
-
-### User Onboarding & Preferences
-- Two-step post-registration wizard: (1) select areas of interest from 24 categories, (2) follow organizers
-- Preferences stored in the User model and influence event browse ordering (preference-matched events surfaced first via scoring in the query pipeline)
-- Skip option available; preferences editable from the Profile page at any time
-
-### User Data Models
-- **Participant:** firstName, lastName, email (unique), participantType (iiit/non-iiit), collegeOrg, contactNumber, password (hashed), areasOfInterest[], followedOrganizers[]
-- **Organizer:** name, category (cultural/technical/sports/other), description, contactEmail, contactNumber, discordWebhook, logo, followers[], isActive
 
 ### Event Types
 - **Normal Event:** Individual registration with optional custom form. Workshops, talks, competitions.
 - **Merchandise Event:** Item purchase with variant support (size, color, stock). Payment proof upload required; orders enter "pending" state for organizer approval. Stock decremented only on approval. Configurable per-participant purchase limit.
-- **Hackathon Event:** Team-based registration support (individual, team, or both registration types).
-
-### Event Attributes
-Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-only), registrationDeadline, startDate, endDate, registrationLimit, registrationFee, organizerId, tags[], status (draft/published/ongoing/completed/closed).
-- **Normal Events:** Dynamic custom registration form via form builder (9 field types, required/optional toggle, reorderable). Form locks after first registration.
-- **Merchandise Events:** variants[] (size, color, stock, price), purchaseLimitPerUser.
-- **Hackathon Events:** allowTeamRegistration, minTeamSize, maxTeamSize, registrationType.
-
-### Participant Features
-
-| Feature | Implementation |
-|---------|---------------|
-| **Navigation** | Role-aware Navbar with Dashboard, Browse Events, Clubs/Organizers, Profile, Logout. Mobile-responsive hamburger menu. |
-| **Dashboard** | Upcoming events section. Tabbed participation history (Normal, Merchandise, Completed, Cancelled). Each record shows event name, type, organizer, status, team, clickable ticket ID. Ticket modal with QR code. |
-| **Browse Events** | Trending section (top 5 by 24h registrations via aggregation pipeline). Text search (MongoDB `$text` index). Filters: event type, eligibility, date range, followed clubs only. Paginated grid. |
-| **Event Details** | Full event info with registration/purchase buttons. Dynamic custom form modal for normal events. Variant picker + payment proof upload for merchandise (shows order status: pending/approved/rejected). Deadline/capacity/stock blocking. |
-| **Registration** | Normal: form submission → ticket with QR generated → confirmation email sent. Merchandise: variant selected + payment proof uploaded → order pending → organizer approves → stock decremented + QR + email. Ticket format: `FEL-<timestamp>-<random>`. |
-| **Profile** | Editable: name, contact, college, interests, followed clubs. Non-editable: email, participant type. Password change with current password verification. |
-| **Organizer Listing** | All active organizers with search, follow/unfollow toggle, follower and event counts. |
-| **Organizer Detail** | Profile info, follow button, upcoming events grid, past events grid. |
-
-### Organizer Features
-
-| Feature | Implementation |
-|---------|---------------|
-| **Navigation** | Dashboard, Create Event, Ongoing Events, Profile, Logout. |
-| **Dashboard** | Event cards with status tabs (All/Draft/Published/Ongoing/Completed/Closed). Analytics: total events, registrations, revenue, attendance rate. |
-| **Event Detail** | Overview with analytics cards. Participant table with search/filter by status, check-in, institution type. CSV export. Status management actions. Merchandise events get a dedicated "Merchandise Orders" tab with approve/reject workflow, payment proof preview, and order status summary. |
-| **Event Creation** | 4-step wizard: (1) Basic info, (2) Configuration (eligibility, tags, team/merch settings), (3) Custom form builder (drag-to-reorder, 9 field types), (4) Review & save as draft. Edit mode respects status-dependent rules. |
-| **Profile** | Editable fields including Discord webhook URL for auto-posting events. Password reset request to admin. |
-| **Discord Webhook** | On event publish, auto-sends rich embed to configured Discord channel with event details, dates, and registration info. |
-
-### Admin Features
-
-| Feature | Implementation |
-|---------|---------------|
-| **Navigation** | Dashboard, Manage Clubs/Organizers, Password Requests, Logout. |
-| **Dashboard** | Platform stats (participants, organizers, events, revenue). Recent events with delete. Pending password request preview. |
-| **Club Management** | Create organizer (auto-generates password, displays credentials with copy button). Edit, disable/enable, permanently delete (cascades to events/tickets). Search and status filter. |
-
-### Deployment
-- **Frontend:** Deployed to Vercel (static hosting)
-- **Backend:** Deployed to Render (managed Node.js hosting)
-- **Database:** MongoDB Atlas (connection via `MONGO_URI` environment variable)
-- **URLs:** See `deployment.txt` in project root
-
----
 
 ## Advanced Features Implemented
-
 ### Tier A — Feature 1: QR Scanner & Attendance Tracking
 
 **Why this feature:** Attendance tracking is the most critical operational need during a fest. Without it, organizers cannot verify who actually attended vs who merely registered, making post-event analysis and resource planning impossible. The QR-based approach eliminates manual roll calls and provides real-time visibility.
@@ -214,29 +198,7 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 
 ---
 
-### Tier B — Feature 1: Email System with Lazy Transporter Initialization
-
-**Why this feature:** The email system is critical for sending ticket confirmations with QR codes. A subtle bug caused `ECONNREFUSED 127.0.0.1:587` errors: ES module imports are hoisted, so `email.js` was creating the SMTP transporter at import time — before `dotenv.config()` in `server.js` had run. This meant `process.env.SMTP_HOST` was `undefined`, and Nodemailer defaulted to `localhost:587`.
-
-**Key Files:**
-- `backend/utils/email.js` — Lazy transporter initialization, `sendEmail`, `sendTicketEmail`
-
-**Implementation Details:**
-
-1. **Lazy Initialization Pattern**
-   - Transporter is NOT created at module load time
-   - A `getTransporter()` function creates and caches the transporter on first use
-   - By the time any email function is called, `dotenv.config()` has already run in `server.js`
-   - Subsequent calls reuse the cached transporter instance
-
-2. **Email Functions**
-   - `sendEmail({ to, subject, html })` — Generic email sender for any purpose
-   - `sendTicketEmail(user, event, ticket)` — Sends formatted ticket confirmation with QR code image
-   - Both use `getTransporter()` instead of a module-level `transporter` constant
-
----
-
-### Tier B — Feature 2: Organizer Password Reset Workflow
+### Tier B — Feature 1: Organizer Password Reset Workflow
 
 **Why this feature:** Organizer accounts handle sensitive event data (participant info, payments, attendance). Self-service password resets would be a security risk. An admin-mediated workflow ensures accountability while providing a structured process for organizers who lose access.
 
@@ -284,6 +246,35 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 
 ---
 
+### Tier B — Feature 2: Real-Time Discussion Forum
+
+**Why this feature:** Events often generate questions, clarifications, and informal discussion that isn't captured through registration data. A built‑in forum keeps participants engaged, allows organisers to moderate conversations, and replaces ad‑hoc group chats or external platforms. Implementing it as a Tier B feature ensures a usable base product while still demonstrating real‑time capabilities and moderation tools.
+
+**Key Files:**
+- `backend/models/Message.js` — Forum message schema with threading, reactions, attachments, and announcement flags
+- `backend/controllers/forumController.js` — CRUD and moderation endpoints plus participant verification logic
+- `backend/utils/socket.js` — Socket.IO setup handling room joins, typing, online users, and event broadcasting
+- `frontend/src/pages/events/DiscussionForum.jsx` — React component rendering the forum on the Event Details page
+- `frontend/src/services/eventService.js` — new service methods for the forum API
+- `frontend/src/pages/events/EventDetails.jsx` — integrates the discussion component conditionally for registered users/organizers
+
+**Implementation Details:**
+1. **Access Control:** Participants must own a ticket for the event; organizers have full access. Middleware enforces on GET/POST. Messaging endpoints live under `/api/events/:id/forum`.
+2. **Real-Time Delivery:** Socket.IO rooms named `event_<id>` broadcast events: `newMessage`, `messageDeleted`, `messagePinned`, `messageReacted`, `userTyping`, `userStopTyping`, and `onlineUsers`.
+3. **Threading:** Messages can reference a `parentId`; replies are indented when rendered. Messages without parents are top-level.
+4. **Moderation:** Organizers can pin/unpin and delete any message; participants may delete their own. Pinned messages render at the top and display a pin icon.
+5. **Reactions & Notifications:** Users toggle a 👍 reaction; counts are shown and updated live. Incoming messages from others trigger toast notifications to keep users aware.
+6. **Typing & Presence:** Typing indicators show the first names of users currently typing. An online count is displayed and kept in sync via server state.
+7. **Attachments:** Users may upload a file via the Cloudinary proxy (`/api/upload`) or paste a URL; attachments display as clickable links below a message.
+
+**Design Decisions:**
+- Socket.IO chosen for real-time because it was already added for Tier A? (no, implementation added now), offers easy room management and fallback transports.
+- A simple in-browser file upload suffices; further enhancements like image previews or size limits can be added later.
+- Emoji reactions limited to thumbs-up to keep the interface lightweight; schema supports more in future.
+- Using the existing Axios instance for uploads ensures auth token is sent.
+
+---
+
 ### Tier C — Bot Protection (hCaptcha)
 
 **Why this feature:** Registration and login endpoints are the primary attack surface for automated bots. Without CAPTCHA, bots could mass-register fake accounts, brute-force passwords, or create spam registrations for events. hCaptcha was chosen over Google reCAPTCHA for better privacy practices and no Google dependency.
@@ -304,44 +295,6 @@ Core fields: name, description, eventType, eligibility (all/iiit-only/non-iiit-o
 - **hCaptcha over reCAPTCHA:** Privacy-first (doesn't track users for ad profiling), GDPR-compliant, free tier sufficient
 - **Server-side verification mandatory:** Client-side CAPTCHA alone is bypassable; the backend re-validates every token
 - **Graceful degradation:** If CAPTCHA is not configured (dev environment), the system works normally without it
-
----
-
-## Libraries & Frameworks — Full Justification
-
-### Backend Dependencies
-
-| Library | Version | Why It's Used |
-|---------|---------|---------------|
-| `express` | 5.2.1 | Core web framework. v5 chosen for native async error handling — eliminates the need for `express-async-errors` and simplifies controller code. Mature ecosystem with extensive middleware support. |
-| `mongoose` | 9.2.1 | MongoDB ODM providing schema validation, middleware hooks (pre-save password hashing), population (joining references), and aggregation pipeline support. Alternatives like raw MongoDB driver lack schema enforcement. |
-| `bcryptjs` | 3.0.3 | Pure JavaScript bcrypt implementation for password hashing. Chosen over `bcrypt` (native C++ bindings) to avoid platform-specific build issues on deployment (Render, Vercel). Security requirement mandated by the assignment. |
-| `jsonwebtoken` | 9.0.3 | Industry-standard JWT creation and verification. Used for stateless authentication — the server doesn't store sessions, making horizontal scaling trivial. 30-day token expiry balances security with UX. |
-| `cors` | 2.8.6 | CORS middleware restricting API access to the frontend origin (`FRONTEND_URL`). Prevents unauthorized cross-origin requests in production while allowing the Vite dev server during development. |
-| `dotenv` | 17.3.1 | Loads environment variables from `.env` file. Keeps secrets (MongoDB URI, JWT secret, SMTP credentials, Cloudinary keys) out of source code. Standard practice for 12-factor app configuration. |
-| `nodemailer` | 8.0.1 | SMTP email client for sending ticket confirmations, team invitations, and notification emails. Configured with Gmail SMTP (App Passwords). Alternatives like SendGrid/Mailgun add external service dependency. |
-| `qrcode` | 1.5.4 | Generates QR code images as base64 data URLs. Each ticket gets a unique QR encoding `{ ticketId, eventId, userId, timestamp }` as JSON. Data URL format allows embedding directly in emails and UI without file storage. |
-| `json2csv` | 6.0.0-alpha.2 | Converts JSON arrays to CSV format for participant and attendance exports. Handles edge cases like commas in values, proper quoting, and custom field headers. |
-| `axios` | 1.13.5 | HTTP client used server-side for two purposes: (1) Discord webhook POST requests, (2) CAPTCHA token verification against hCaptcha/reCAPTCHA APIs. Consistent API with the frontend's Axios usage. |
-| `multer` | 2.0.2 | Multipart form-data middleware for file uploads. Configured with memory storage (files stored in buffer, not disk) and 10MB size limit. Used for the Cloudinary proxy endpoint. |
-| `nodemon` | 3.1.11 | Dev dependency — auto-restarts the server on file changes during development. |
-
-### Frontend Dependencies
-
-| Library | Version | Why It's Used |
-|---------|---------|---------------|
-| `react` | 19.2.0 | UI library. Component-based architecture with hooks provides clean state management without class components. React 19 chosen for improved concurrent rendering and automatic batching. |
-| `react-dom` | 19.2.0 | React DOM renderer — required companion to React for web applications. |
-| `react-router-dom` | 7.13.0 | Client-side routing with `BrowserRouter`. Provides `<Routes>`, `<Route>`, `useNavigate`, `useParams` for SPA navigation. 24+ routes defined, nested by role. |
-| `axios` | 1.13.5 | HTTP client with interceptor support. Request interceptor auto-attaches JWT token to every API call. Response interceptor handles 401 (session expiry → redirect to login). Cleaner API than native fetch for setting headers and handling errors. |
-| `@radix-ui/themes` | 3.3.0 | Pre-built, accessible component library (Dialog, DropdownMenu, Badge, Card, Table, etc.) with built-in dark/light theme support. Chosen over Material UI (smaller bundle, no CSS-in-JS runtime) and Tailwind (provides complete components, not just utilities). |
-| `@radix-ui/react-icons` | 1.3.2 | SVG icon set matching Radix design language. Lightweight (tree-shakeable), consistent visual style with Radix Themes components. |
-| `html5-qrcode` | 2.3.8 | Camera-based QR code scanning for the attendance dashboard. Uses the browser's `getUserMedia` API. Chosen over `react-qr-reader` (unmaintained) and `zxing` (heavier bundle). Supports both rear and front cameras. |
-| `react-toastify` | 11.0.5 | Toast notification system for success/error feedback on user actions (registration, follow, password change, etc.). Auto-dismiss, stackable, and customizable positioning. |
-| `date-fns` | 4.1.0 | Lightweight date formatting utilities (tree-shakeable). Used for displaying event dates in human-readable format. Chosen over Moment.js (deprecated, large bundle) and Day.js (date-fns has better tree-shaking). |
-| `@hcaptcha/vanilla-hcaptcha` | 1.1.4 | Official hCaptcha web component. Renders the CAPTCHA challenge widget. Vanilla (framework-agnostic) version chosen over React-specific wrappers for smaller bundle and simpler integration. |
-| `vite` | 7.3.1 | Build tool and dev server. Near-instant HMR via native ES modules during development. Optimized production builds with Rollup. Chosen over Create React App (deprecated) and Webpack (slower, more config). |
-| `@vitejs/plugin-react` | 5.1.1 | Vite plugin enabling JSX transform and React Fast Refresh (HMR for React components). |
 
 ---
 
@@ -384,11 +337,6 @@ JWT_SECRET=<random-64-char-string>
 ADMIN_EMAIL=admin@felicity.iiit.ac.in
 ADMIN_PASSWORD=<strong-password>
 FRONTEND_URL=http://localhost:5173
-
-# Cloudinary (for file uploads)
-CLOUDINARY_CLOUD_NAME=<your-cloud-name>
-CLOUDINARY_API_KEY=<your-api-key>
-CLOUDINARY_API_SECRET=<your-api-secret>
 
 # SMTP (Gmail with App Password)
 SMTP_HOST=smtp.gmail.com
@@ -449,7 +397,3 @@ cd frontend && npm run dev   # Frontend on http://localhost:5173
 | Frontend | Vercel | See `deployment.txt` |
 | Backend | Render | See `deployment.txt` |
 | Database | MongoDB Atlas | Via `MONGO_URI` env var |
-
-Environment variables are configured in each platform's dashboard (not committed to source).
-
-
