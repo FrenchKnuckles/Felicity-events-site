@@ -7,7 +7,7 @@ import { PersonIcon, AvatarIcon, CalendarIcon, CubeIcon, LockClosedIcon, CheckCi
 import { format } from "date-fns";
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState({ totalUsers: 0, totalOrganizers: 0, totalEvents: 0, totalRegistrations: 0, totalRevenue: 0, pendingPasswordRequests: 0 });
+  const [stats, setStats] = useState({ totalUsers: 0, totalOrganizers: 0, totalEvents: 0, totalRegistrations: 0, pendingPasswordRequests: 0 });
   const [recentEvents, setRecentEvents] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +15,7 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       const [sr, er, pr] = await Promise.all([adminService.getStats(), adminService.getRecentEvents(), adminService.getPasswordRequests({ status: "pending", limit: 5 })]);
-      setStats({ totalUsers: sr.totalUsers || 0, totalOrganizers: sr.totalOrganizers || 0, activeOrganizers: sr.activeOrganizers || 0, totalEvents: sr.totalEvents || 0, totalRegistrations: sr.totalRegistrations || 0, totalRevenue: sr.totalRevenue || 0, pendingPasswordRequests: sr.pendingRequests || 0 });
+      setStats({ totalUsers: sr.totalUsers || 0, totalOrganizers: sr.totalOrganizers || 0, activeOrganizers: sr.activeOrganizers || 0, totalEvents: sr.totalEvents || 0, totalRegistrations: sr.totalRegistrations || 0, pendingPasswordRequests: sr.pendingRequests || 0 });
       setRecentEvents(Array.isArray(er) ? er : er.events || []);
       setPendingRequests(Array.isArray(pr) ? pr : pr.requests || []);
     } catch { toast.error("Failed to fetch dashboard data"); } finally { setLoading(false); }
@@ -29,7 +29,6 @@ const AdminDashboard = () => {
     { t: "Total Participants", v: stats.totalUsers, I: PersonIcon, c: "blue" },
     { t: "Total Organizers", v: stats.totalOrganizers, I: AvatarIcon, c: "purple", l: "/admin/organizers" },
     { t: "Total Events", v: stats.totalEvents, I: CalendarIcon, c: "green", l: "/admin/events" },
-    { t: "Total Revenue", v: `₹${stats.totalRevenue?.toLocaleString() || 0}`, I: CubeIcon, c: "teal" },
   ];
 
 
