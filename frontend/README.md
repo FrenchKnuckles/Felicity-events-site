@@ -513,6 +513,28 @@ Create or edit organizer account (admin view).
 Admin queue for organizer password reset requests.
 
 - **Status Filter Tabs:** All, Pending, Approved, Rejected
+
+#### `DiscussionForum.jsx`
+Real-time event-level message board displayed on the event details page for users who are registered (and accessible to organizers for moderation).
+
+- **Real-time delivery:** Powered by Socket.IO; clients join an `event_<id>` room and receive new messages, deletions, pins, reactions, typing notifications, and online user counts instantly.
+- **Message history:** Loaded via `GET /events/:id/forum` when the page loads.
+- **Threading:** Messages may reference `parentId`; replies are indented in the UI.
+- **Moderation:** Organizers can delete or pin/unpin messages and mark announcements. Participants can delete their own posts.
+- **Reactions:** Users can react with emojis (thumbs-up) and see counts; toggling updates in real-time.
+- **Typing & online indicators:** Displays who is typing and number of online participants.
+- **Notifications:** Incoming messages trigger toast notifications when the user is not the author.
+- **Attachments/links:** Messages support an `attachmentUrl` field; users may paste a URL or upload via Cloudinary.
+
+**API endpoints added:**
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| GET    | `/events/:id/forum` | participant/organizer | fetch all messages for event |
+| POST   | `/events/:id/forum` | participant/organizer | post new message |
+| DELETE | `/events/:id/forum/:msgId` | organizer or owner | remove message |
+| PUT    | `/events/:id/forum/:msgId/pin` | organizer | toggle pinned status |
+| PUT    | `/events/:id/forum/:msgId/react` | participant/organizer | add/remove reaction |
+
 - **Request Cards:** Organizer name, email, reason, submission date, current status
 - **Approve Action:** Opens dialog, on confirm generates new password, displays credentials for admin to share
 - **Reject Action:** Opens dialog with mandatory comment field explaining rejection reason

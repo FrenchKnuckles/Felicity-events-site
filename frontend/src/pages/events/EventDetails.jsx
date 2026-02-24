@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { Box, Card, Flex, Text, Button, Heading, Badge, Spinner, Select, Grid, Separator } from "@radix-ui/themes";
+import DiscussionForum from "./DiscussionForum";
 import { CalendarIcon, PersonIcon, BackpackIcon, ClockIcon, InfoCircledIcon, CheckCircledIcon, CrossCircledIcon, UploadIcon } from "@radix-ui/react-icons";
 import api from "../../api/axios";
 
@@ -360,6 +361,8 @@ const EventDetails = () => {
           )}
         </Box>
       </Grid>
+      {/* discussion forum visible to registered participants or organizers */}
+      {(registered || user?.role === "organizer") && <DiscussionForum eventId={id} />}
     </Box>
   );
 };

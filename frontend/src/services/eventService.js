@@ -49,6 +49,28 @@ export const eventService = {
     const response = await api.get(`/events/tickets/${ticketId}`);
     return response.data;
   },
+
+  // Forum support
+  getForumMessages: async (eventId) => {
+    const response = await api.get(`/events/${eventId}/forum`);
+    return response.data;
+  },
+  postForumMessage: async (eventId, body) => {
+    const response = await api.post(`/events/${eventId}/forum`, body);
+    return response.data;
+  },
+  deleteForumMessage: async (eventId, msgId) => {
+    const response = await api.delete(`/events/${eventId}/forum/${msgId}`);
+    return response.data;
+  },
+  pinForumMessage: async (eventId, msgId) => {
+    const response = await api.put(`/events/${eventId}/forum/${msgId}/pin`);
+    return response.data;
+  },
+  reactForumMessage: async (eventId, msgId, emoji) => {
+    const response = await api.put(`/events/${eventId}/forum/${msgId}/react`, { emoji });
+    return response.data;
+  },
 };
 
 export default eventService;

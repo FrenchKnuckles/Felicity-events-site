@@ -150,6 +150,9 @@ QR-based and manual check-in system with audit trail.
 - `scanQRCheckIn` — Parses QR code JSON (ticketId, eventId, userId), validates ticket ownership, rejects duplicate scans (logs attempt count), creates Attendance record with audit entry
 - `manualCheckIn` — Search-based check-in requiring a reason (min 10 characters) for audit trail
 - `getAttendanceDashboard` — Real-time stats: total registered, checked-in count, percentage, hourly breakdown, recent check-ins
+
+- **Forum model:** `Message` schema stores eventId, userId, content, optional parentId, pinned flag, reactions array, attachments, announcements and timestamps
+- New routes under `/me/events/:id` and `/events/:id/forum` allow participants to view/post messages and organizers to moderate. Socket.io events support real-time delivery, typing indicators, online status, and reactions.
 - `exportAttendanceCSV` — CSV with participant details, check-in time, method; optional inclusion of not-checked-in participants
 - `getAuditLogs` — Paginated audit trail with action details
 - `searchParticipant` — Find participants by name/email for manual check-in

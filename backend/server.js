@@ -65,6 +65,14 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+// create HTTP server so socket.io can attach
+import http from "http";
+const server = http.createServer(app);
+
+// initialize socket.io
+import { initSocket } from "./utils/socket.js";
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
